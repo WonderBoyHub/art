@@ -1,24 +1,52 @@
 #!/usr/bin/env python3
 """
-Interactive Waveform Visualizer - Audio-style waves with cyberpunk aesthetics
+Interactive Waveform Visualizer - Audio-responsive wave patterns
 Perfect for Raspberry Pi 5 with 3.5" display
-RETRO CYBERPUNK PIXEL ART VERSION
+PIXEL ART INTERACTIVE VERSION
 """
 
 import pygame
+import random
 import math
 import time
-import random
-import os
+import sys
+import subprocess
 
 # Initialize Pygame
 pygame.init()
 
-# Screen dimensions (optimized for 3.5" Pi display)
+# Screen dimensions
 WIDTH = 480
 HEIGHT = 320
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("◉ WAVEFORM.EXE - CYBERPUNK MODE ◉")
+pygame.display.set_caption("Interactive Waveform Visualizer")
+
+# Fullscreen support
+fullscreen = False
+
+clock = pygame.time.Clock()
+start_time = time.time()
+
+def toggle_fullscreen():
+    """Toggle fullscreen mode"""
+    global screen, fullscreen
+    
+    if fullscreen:
+        screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        fullscreen = False
+    else:
+        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        fullscreen = True
+
+def return_to_launcher():
+    """Return to the main launcher"""
+    pygame.quit()
+    try:
+        subprocess.run([sys.executable, "run_art.py"], check=True)
+    except Exception as e:
+        print(f"Could not return to launcher: {e}")
+    finally:
+        sys.exit(0)
 
 # Cyberpunk color palette
 NEON_CYAN = (0, 255, 255)
@@ -504,15 +532,17 @@ def main():
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    running = False
+                    return_to_launcher()
+                elif event.key == pygame.K_F11:
+                    toggle_fullscreen()
+                elif event.key == pygame.K_h:
+                    show_ui = not show_ui
+                elif event.key == pygame.K_r:
+                    waveform.reset()
                 elif event.key == pygame.K_t:
                     waveform.cycle_wave_type()
                 elif event.key == pygame.K_c:
                     waveform.cycle_color_mode()
-                elif event.key == pygame.K_r:
-                    waveform.reset()
-                elif event.key == pygame.K_h:
-                    show_ui = not show_ui
         
         # Handle continuous input
         waveform.handle_input(keys)
