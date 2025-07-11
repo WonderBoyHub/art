@@ -553,6 +553,7 @@ class InteractiveArtLauncher:
     
     def run_program(self, filename):
         """Execute selected program with enhanced feedback"""
+        global screen
         try:
             # Show execution feedback
             exec_rect = pygame.Rect(WIDTH//2 - 100, HEIGHT//2 - 20, 200, 40)
@@ -567,7 +568,6 @@ class InteractiveArtLauncher:
             
             # Restart launcher
             pygame.init()
-            global screen
             screen = pygame.display.set_mode((WIDTH, HEIGHT))
             pygame.display.set_caption("◉ CYBER.ART.TERMINAL ◉ Retro Computing Mode")
             
@@ -627,10 +627,10 @@ class InteractiveArtLauncher:
                     self.boot_complete = True
             else:
                 self.draw_animated_background()
-            self.draw_title()
-            self.draw_menu()
+                self.draw_title()
+                self.draw_menu()
                 self.draw_controls_panel()
-            self.draw_instructions()
+                self.draw_instructions()
                 self.draw_system_monitor()
                 
                 # Global scanlines and effects
