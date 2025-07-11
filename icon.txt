@@ -1,0 +1,12 @@
+◉ CYBERPUNK ART COLLECTION ◉
+
+This file serves as a placeholder for the application icon.
+For actual deployment, replace with a proper PNG icon file.
+
+Suggested icon design:
+- 48x48 pixel cyberpunk-themed icon
+- Neon colors (cyan/pink/purple)
+- Circuit board or pixel art motif
+- Transparent background
+
+Icon should be saved as: icon.png 
