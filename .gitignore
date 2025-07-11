@@ -1,0 +1,52 @@
+# Virtual Environment
+venv/
+.venv/
+env/
+.env/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# macOS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Screenshots/recordings
+*.png
+*.jpg
+*.gif
+*.mp4
+*.avi
+
+# OS generated files
+.directory
+desktop.ini
+
+# Backup files
+*.bak
+*.backup
+
+# Development files
+test_*.py
+debug_*.py 
