@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Advanced Ecosystem Life Simulator - Multi-species cellular life simulation
-Perfect for Raspberry Pi 5 with 3.5" display
-ADVANCED LIFE SIMULATION VERSION
+Advanced Civilization Simulator - WorldBox-style civilization game
+Perfect for Raspberry Pi 5 with 3.5" display (480x320)
+COMPLETE CIVILIZATION SIMULATOR WITH DNA GENETICS AND CHARACTER CREATION
 """
 
 import pygame
@@ -12,28 +12,31 @@ import time
 import math
 import sys
 import subprocess
+import json
+from enum import Enum
+from dataclasses import dataclass
+from typing import List, Dict, Optional, Tuple
 
 # Initialize Pygame
 pygame.init()
 
-# Screen dimensions
+# Screen dimensions optimized for Pi 5
 WIDTH = 480
 HEIGHT = 320
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Advanced Ecosystem Simulator")
+pygame.display.set_caption("Advanced Civilization Simulator")
 
 # Fullscreen support
 fullscreen = False
-
 clock = pygame.time.Clock()
 start_time = time.time()
 
-# Grid settings
-CELL_SIZE = 3
-GRID_WIDTH = WIDTH // CELL_SIZE
-GRID_HEIGHT = HEIGHT // CELL_SIZE
+# Grid settings for pixel art style
+TILE_SIZE = 4
+GRID_WIDTH = WIDTH // TILE_SIZE
+GRID_HEIGHT = HEIGHT // TILE_SIZE
 
-# Enhanced colors
+# Enhanced cyberpunk color palette
 CYBER_BLACK = (10, 10, 15)
 NEON_BLUE = (50, 150, 255)
 NEON_GREEN = (50, 255, 150)
@@ -42,1000 +45,1197 @@ NEON_YELLOW = (255, 255, 50)
 NEON_RED = (255, 50, 50)
 NEON_PURPLE = (150, 50, 255)
 NEON_ORANGE = (255, 150, 50)
-LIFE_GREEN = (100, 255, 100)
-PREDATOR_RED = (255, 100, 100)
-PLANT_GREEN = (50, 200, 50)
-WATER_BLUE = (100, 150, 255)
+TERRAIN_COLORS = {
+    'water': (50, 100, 200),
+    'grass': (50, 150, 50),
+    'forest': (30, 100, 30),
+    'mountain': (100, 80, 60),
+    'desert': (200, 180, 100),
+    'snow': (240, 240, 255),
+    'swamp': (80, 100, 60),
+    'volcanic': (150, 50, 50)
+}
 
-# Species types
-EMPTY = 0
-PLANT = 1
-HERBIVORE = 2
-CARNIVORE = 3
-OMNIVORE = 4
-DECOMPOSER = 5
-WATER = 6
-NUTRIENT = 7
+# Civilization colors
+CIVILIZATION_COLORS = [
+    (255, 100, 100),  # Red tribe
+    (100, 255, 100),  # Green tribe
+    (100, 100, 255),  # Blue tribe
+    (255, 255, 100),  # Yellow tribe
+    (255, 100, 255),  # Magenta tribe
+    (100, 255, 255),  # Cyan tribe
+    (255, 150, 100),  # Orange tribe
+    (150, 100, 255),  # Purple tribe
+]
 
-class Species:
-    def __init__(self, species_type, x, y):
-        self.type = species_type
-        self.x = x
-        self.y = y
-        self.age = 0
-        self.energy = 100
-        self.health = 100
-        self.reproductive_energy = 0
-        self.mutation_rate = 0.01
-        
-        # Genetic traits (0.0 to 1.0)
-        self.speed = random.uniform(0.3, 1.0)
-        self.efficiency = random.uniform(0.3, 1.0)
-        self.resilience = random.uniform(0.3, 1.0)
-        self.fertility = random.uniform(0.3, 1.0)
+class TerrainType(Enum):
+    WATER = 0
+    GRASS = 1
+    FOREST = 2
+    MOUNTAIN = 3
+    DESERT = 4
+    SNOW = 5
+    SWAMP = 6
+    VOLCANIC = 7
+
+class ResourceType(Enum):
+    FOOD = 0
+    WOOD = 1
+    STONE = 2
+    METAL = 3
+    KNOWLEDGE = 4
+    ENERGY = 5
+
+class TechType(Enum):
+    AGRICULTURE = 0
+    TOOLS = 1
+    WEAPONS = 2
+    CONSTRUCTION = 3
+    MEDICINE = 4
+    MAGIC = 5
+    WARFARE = 6
+    TRADE = 7
+
+@dataclass
+class DNAGene:
+    """Individual DNA gene with specific traits"""
+    strength: float  # Physical power (0.0-1.0)
+    intelligence: float  # Learning ability
+    charisma: float  # Social influence
+    agility: float  # Speed and dexterity
+    endurance: float  # Health and longevity
+    creativity: float  # Innovation and art
+    aggression: float  # Combat tendency
+    cooperation: float  # Team work ability
+    fertility: float  # Reproduction rate
+    adaptability: float  # Environmental adaptation
+    
+    def __init__(self):
+        """Initialize random DNA"""
+        self.strength = random.uniform(0.1, 1.0)
+        self.intelligence = random.uniform(0.1, 1.0)
+        self.charisma = random.uniform(0.1, 1.0)
+        self.agility = random.uniform(0.1, 1.0)
+        self.endurance = random.uniform(0.1, 1.0)
+        self.creativity = random.uniform(0.1, 1.0)
         self.aggression = random.uniform(0.0, 1.0)
-        self.intelligence = random.uniform(0.0, 1.0)
-        
-        # Species-specific initialization
-        self.initialize_species_traits()
+        self.cooperation = random.uniform(0.0, 1.0)
+        self.fertility = random.uniform(0.1, 1.0)
+        self.adaptability = random.uniform(0.1, 1.0)
     
-    def initialize_species_traits(self):
-        """Initialize species-specific traits"""
-        if self.type == PLANT:
-            self.energy = 50
-            self.max_energy = 150
-            self.reproduction_threshold = 80
-            self.lifespan = 200
-        elif self.type == HERBIVORE:
-            self.energy = 80
-            self.max_energy = 120
-            self.reproduction_threshold = 100
-            self.lifespan = 150
-        elif self.type == CARNIVORE:
-            self.energy = 100
-            self.max_energy = 200
-            self.reproduction_threshold = 150
-            self.lifespan = 120
-        elif self.type == OMNIVORE:
-            self.energy = 90
-            self.max_energy = 180
-            self.reproduction_threshold = 130
-            self.lifespan = 140
-        elif self.type == DECOMPOSER:
-            self.energy = 60
-            self.max_energy = 100
-            self.reproduction_threshold = 70
-            self.lifespan = 100
-    
-    def mutate(self):
-        """Apply genetic mutations"""
-        if random.random() < self.mutation_rate:
-            trait = random.choice(['speed', 'efficiency', 'resilience', 'fertility', 'aggression', 'intelligence'])
-            change = random.uniform(-0.1, 0.1)
-            current_value = getattr(self, trait)
-            new_value = max(0.0, min(1.0, current_value + change))
-            setattr(self, trait, new_value)
-    
-    def age_one_turn(self):
-        """Age the organism and apply aging effects"""
-        self.age += 1
+    def mate_with(self, other_dna: 'DNAGene') -> 'DNAGene':
+        """Create offspring DNA by combining two parents"""
+        child = DNAGene()
         
-        # Energy decay based on age and species
-        decay_rate = 1 + (self.age / self.lifespan) * 2
-        self.energy -= decay_rate
-        
-        # Health degradation
-        if self.age > self.lifespan * 0.8:
-            self.health -= random.uniform(0.5, 2.0)
-        
-        return self.energy > 0 and self.health > 0
-    
-    def can_reproduce(self):
-        """Check if organism can reproduce"""
-        return (self.energy > self.reproduction_threshold and 
-                self.age > 10 and 
-                self.reproductive_energy > 50)
-    
-    def reproduce(self, partner=None):
-        """Create offspring with genetic inheritance"""
-        if not self.can_reproduce():
-            return None
-        
-        # Energy cost for reproduction
-        self.energy -= 30
-        self.reproductive_energy = 0
-        
-        child = Species(self.type, self.x, self.y)
-        
-        # Genetic inheritance
-        if partner:
-            # Sexual reproduction - blend traits
-            child.speed = (self.speed + partner.speed) / 2
-            child.efficiency = (self.efficiency + partner.efficiency) / 2
-            child.resilience = (self.resilience + partner.resilience) / 2
-            child.fertility = (self.fertility + partner.fertility) / 2
-            child.aggression = (self.aggression + partner.aggression) / 2
-            child.intelligence = (self.intelligence + partner.intelligence) / 2
-        else:
-            # Asexual reproduction - copy traits
-            child.speed = self.speed
-            child.efficiency = self.efficiency
-            child.resilience = self.resilience
-            child.fertility = self.fertility
-            child.aggression = self.aggression
-            child.intelligence = self.intelligence
+        # Blend traits from both parents
+        child.strength = (self.strength + other_dna.strength) / 2
+        child.intelligence = (self.intelligence + other_dna.intelligence) / 2
+        child.charisma = (self.charisma + other_dna.charisma) / 2
+        child.agility = (self.agility + other_dna.agility) / 2
+        child.endurance = (self.endurance + other_dna.endurance) / 2
+        child.creativity = (self.creativity + other_dna.creativity) / 2
+        child.aggression = (self.aggression + other_dna.aggression) / 2
+        child.cooperation = (self.cooperation + other_dna.cooperation) / 2
+        child.fertility = (self.fertility + other_dna.fertility) / 2
+        child.adaptability = (self.adaptability + other_dna.adaptability) / 2
         
         # Apply mutations
         child.mutate()
+        return child
+    
+    def mutate(self, mutation_rate: float = 0.05):
+        """Apply random mutations to DNA"""
+        traits = ['strength', 'intelligence', 'charisma', 'agility', 'endurance', 
+                 'creativity', 'aggression', 'cooperation', 'fertility', 'adaptability']
+        
+        for trait in traits:
+            if random.random() < mutation_rate:
+                current_value = getattr(self, trait)
+                change = random.uniform(-0.1, 0.1)
+                new_value = max(0.0, min(1.0, current_value + change))
+                setattr(self, trait, new_value)
+    
+    def get_overall_fitness(self) -> float:
+        """Calculate overall fitness score"""
+        return (self.strength + self.intelligence + self.charisma + 
+                self.agility + self.endurance + self.creativity + 
+                self.cooperation + self.adaptability) / 8
+
+class Character:
+    """Individual character with genetics, skills, and personality"""
+    def __init__(self, x: int, y: int, civilization_id: int = 0):
+        self.x = x
+        self.y = y
+        self.civilization_id = civilization_id
+        self.dna = DNAGene()
+        
+        # Character identity
+        self.name = self.generate_name()
+        self.age = random.randint(18, 30)
+        self.gender = random.choice(['M', 'F'])
+        self.profession = random.choice(['Farmer', 'Hunter', 'Crafter', 'Warrior', 'Shaman', 'Builder'])
+        
+        # Stats derived from DNA
+        self.health = int(self.dna.endurance * 100)
+        self.max_health = self.health
+        self.energy = int(self.dna.endurance * 100)
+        self.max_energy = self.energy
+        self.experience = 0
+        self.level = 1
+        
+        # Skills (0-100)
+        self.skills = {
+            'combat': int(self.dna.strength * 50 + self.dna.agility * 30),
+            'crafting': int(self.dna.creativity * 50 + self.dna.intelligence * 30),
+            'farming': int(self.dna.endurance * 40 + self.dna.intelligence * 20),
+            'hunting': int(self.dna.agility * 40 + self.dna.strength * 30),
+            'social': int(self.dna.charisma * 60 + self.dna.cooperation * 20),
+            'magic': int(self.dna.intelligence * 40 + self.dna.creativity * 40),
+            'building': int(self.dna.strength * 30 + self.dna.intelligence * 40),
+            'leadership': int(self.dna.charisma * 50 + self.dna.intelligence * 30)
+        }
+        
+        # Inventory and equipment
+        self.inventory = {}
+        self.equipment = {'weapon': None, 'armor': None, 'tool': None}
+        
+        # Relationships
+        self.relationships = {}  # character_id -> relationship_value (-100 to 100)
+        self.family = {'spouse': None, 'children': [], 'parents': []}
+        
+        # Goals and personality
+        self.goals = []
+        self.personality_traits = self.generate_personality()
+        
+        # Visual customization
+        self.appearance = self.generate_appearance()
+        
+        # Life state
+        self.alive = True
+        self.task = None
+        self.location_history = [(x, y)]
+        
+    def generate_name(self) -> str:
+        """Generate procedural name based on DNA traits"""
+        consonants = "bcdfghjklmnpqrstvwxyz"
+        vowels = "aeiou"
+        
+        # Name length influenced by charisma
+        name_length = 3 + int(self.dna.charisma * 4)
+        name = ""
+        
+        for i in range(name_length):
+            if i % 2 == 0:
+                name += random.choice(consonants)
+            else:
+                name += random.choice(vowels)
+        
+        return name.capitalize()
+    
+    def generate_personality(self) -> Dict[str, float]:
+        """Generate personality traits from DNA"""
+        return {
+            'brave': self.dna.strength * 0.7 + self.dna.endurance * 0.3,
+            'kind': self.dna.cooperation * 0.8 + self.dna.charisma * 0.2,
+            'curious': self.dna.intelligence * 0.6 + self.dna.creativity * 0.4,
+            'social': self.dna.charisma * 0.8 + self.dna.cooperation * 0.2,
+            'aggressive': self.dna.aggression,
+            'creative': self.dna.creativity * 0.9 + self.dna.intelligence * 0.1,
+            'adaptable': self.dna.adaptability
+        }
+    
+    def generate_appearance(self) -> Dict[str, any]:
+        """Generate visual appearance based on DNA"""
+        return {
+            'hair_color': random.choice(['black', 'brown', 'blonde', 'red', 'white']),
+            'eye_color': random.choice(['brown', 'blue', 'green', 'hazel', 'gray']),
+            'skin_tone': random.choice(['light', 'medium', 'dark']),
+            'height': 0.8 + self.dna.strength * 0.4,  # Relative height
+            'build': 'strong' if self.dna.strength > 0.7 else 'average' if self.dna.strength > 0.3 else 'slender'
+        }
+    
+    def age_one_year(self):
+        """Age the character one year"""
+        self.age += 1
+        
+        # Skill development based on profession and DNA
+        if self.profession == 'Farmer':
+            self.skills['farming'] = min(100, self.skills['farming'] + random.randint(1, 3))
+        elif self.profession == 'Hunter':
+            self.skills['hunting'] = min(100, self.skills['hunting'] + random.randint(1, 3))
+        elif self.profession == 'Warrior':
+            self.skills['combat'] = min(100, self.skills['combat'] + random.randint(1, 3))
+        elif self.profession == 'Crafter':
+            self.skills['crafting'] = min(100, self.skills['crafting'] + random.randint(1, 3))
+        elif self.profession == 'Shaman':
+            self.skills['magic'] = min(100, self.skills['magic'] + random.randint(1, 3))
+        elif self.profession == 'Builder':
+            self.skills['building'] = min(100, self.skills['building'] + random.randint(1, 3))
+        
+        # Health effects of aging
+        if self.age > 50:
+            health_loss = int((self.age - 50) * 0.5)
+            self.max_health = max(20, self.max_health - health_loss)
+            self.health = min(self.health, self.max_health)
+        
+        # Death from old age
+        if self.age > 80:
+            death_chance = (self.age - 80) * 0.02
+            if random.random() < death_chance:
+                self.alive = False
+    
+    def can_reproduce(self) -> bool:
+        """Check if character can have children"""
+        return (self.alive and 18 <= self.age <= 45 and 
+                self.health > 50 and self.energy > 30)
+    
+    def reproduce_with(self, partner: 'Character') -> Optional['Character']:
+        """Have a child with another character"""
+        if not (self.can_reproduce() and partner.can_reproduce()):
+            return None
+        
+        # Energy cost for reproduction
+        self.energy -= 20
+        partner.energy -= 20
+        
+        # Create child
+        child_x = self.x + random.randint(-2, 2)
+        child_y = self.y + random.randint(-2, 2)
+        child = Character(child_x, child_y, self.civilization_id)
+        
+        # Inherit DNA from both parents
+        child.dna = self.dna.mate_with(partner.dna)
+        
+        # Update family relationships
+        child.family['parents'] = [self, partner]
+        self.family['children'].append(child)
+        partner.family['children'].append(child)
         
         return child
-
-class Environment:
-    def __init__(self):
-        self.temperature = 20.0  # Celsius
-        self.humidity = 0.5
-        self.oxygen_level = 1.0
-        self.co2_level = 0.04
-        self.toxicity = 0.0
-        self.radiation = 0.0
-        
-        # Climate events
-        self.drought = False
-        self.flood = False
-        self.ice_age = False
-        self.volcanic_activity = False
-        
-        # Seasonal cycle
-        self.season = 0  # 0: Spring, 1: Summer, 2: Autumn, 3: Winter
-        self.day_cycle = 0.0  # 0.0 to 1.0
-        
-    def update(self, time_val):
-        """Update environmental conditions"""
-        # Seasonal changes
-        season_progress = (time_val * 0.1) % 4
-        self.season = int(season_progress)
-        
-        # Temperature variation
-        base_temp = 20 + math.sin(season_progress * math.pi / 2) * 15
-        daily_variation = math.sin(self.day_cycle * 2 * math.pi) * 5
-        self.temperature = base_temp + daily_variation
-        
-        # Day/night cycle
-        self.day_cycle = (time_val * 0.5) % 1.0
-        
-        # Random climate events
-        if random.random() < 0.001:  # 0.1% chance per update
-            self.trigger_climate_event()
-        
-        # Clear events randomly
-        if random.random() < 0.01:
-            self.clear_climate_events()
-        
-        # Environmental effects on atmosphere
-        if self.drought:
-            self.humidity = max(0.1, self.humidity - 0.01)
-        elif self.flood:
-            self.humidity = min(1.0, self.humidity + 0.01)
-        
-        if self.volcanic_activity:
-            self.toxicity = min(1.0, self.toxicity + 0.005)
-            self.co2_level = min(0.1, self.co2_level + 0.001)
+    
+    def get_color(self) -> Tuple[int, int, int]:
+        """Get character's display color"""
+        if self.civilization_id < len(CIVILIZATION_COLORS):
+            base_color = CIVILIZATION_COLORS[self.civilization_id]
         else:
-            self.toxicity = max(0.0, self.toxicity - 0.002)
-            self.co2_level = max(0.03, self.co2_level - 0.0001)
-    
-    def trigger_climate_event(self):
-        """Trigger a random climate event"""
-        event = random.choice(['drought', 'flood', 'ice_age', 'volcanic'])
-        if event == 'drought':
-            self.drought = True
-        elif event == 'flood':
-            self.flood = True
-        elif event == 'ice_age':
-            self.ice_age = True
-        elif event == 'volcanic':
-            self.volcanic_activity = True
-    
-    def clear_climate_events(self):
-        """Clear all climate events"""
-        self.drought = False
-        self.flood = False
-        self.ice_age = False
-        self.volcanic_activity = False
-    
-    def get_survival_modifier(self, species_type):
-        """Get survival modifier based on environmental conditions"""
-        modifier = 1.0
+            base_color = (255, 255, 255)
         
-        # Temperature effects
-        if species_type == PLANT:
-            if 15 <= self.temperature <= 30:
-                modifier *= 1.2
-            elif self.temperature < 5 or self.temperature > 40:
-                modifier *= 0.5
-        elif species_type in [HERBIVORE, OMNIVORE]:
-            if 10 <= self.temperature <= 35:
-                modifier *= 1.1
-            elif self.temperature < 0 or self.temperature > 45:
-                modifier *= 0.6
-        elif species_type == CARNIVORE:
-            if 0 <= self.temperature <= 40:
-                modifier *= 1.0
-            else:
-                modifier *= 0.7
-        
-        # Climate event effects
-        if self.drought and species_type == PLANT:
-            modifier *= 0.3
-        if self.flood and species_type in [HERBIVORE, CARNIVORE]:
-            modifier *= 0.7
-        if self.ice_age:
-            modifier *= 0.8
-        if self.volcanic_activity:
-            modifier *= (1.0 - self.toxicity)
-        
-        return modifier
+        # Modify color based on profession
+        if self.profession == 'Warrior':
+            return tuple(min(255, c + 20) for c in base_color)
+        elif self.profession == 'Shaman':
+            return tuple(max(0, c - 30) for c in base_color)
+        else:
+            return base_color
 
-class AdvancedEcosystemSimulator:
+class Settlement:
+    """Civilization settlement with buildings and population"""
+    def __init__(self, x: int, y: int, civilization_id: int, name: str = ""):
+        self.x = x
+        self.y = y
+        self.civilization_id = civilization_id
+        self.name = name if name else self.generate_name()
+        self.population = []
+        self.buildings = {}
+        self.resources = {resource: 0 for resource in ResourceType}
+        self.technologies = {tech: 0 for tech in TechType}
+        self.defense = 10
+        self.happiness = 50
+        self.growth_rate = 1.0
+        self.trade_routes = []
+        self.culture_points = 0
+        self.established_year = 0
+        
+    def generate_name(self) -> str:
+        """Generate settlement name"""
+        prefixes = ["New", "Old", "Great", "Little", "Upper", "Lower", "North", "South", "East", "West"]
+        suffixes = ["ville", "town", "burg", "haven", "ford", "wood", "hill", "dale", "field", "port"]
+        
+        if random.random() < 0.3:
+            return random.choice(prefixes) + " " + random.choice(suffixes)
+        else:
+            return random.choice(suffixes).capitalize()
+    
+    def add_population(self, character: Character):
+        """Add character to settlement"""
+        self.population.append(character)
+        character.x = self.x + random.randint(-5, 5)
+        character.y = self.y + random.randint(-5, 5)
+    
+    def get_total_population(self) -> int:
+        """Get total living population"""
+        return len([c for c in self.population if c.alive])
+    
+    def get_resource_production(self) -> Dict[ResourceType, int]:
+        """Calculate resource production per turn"""
+        production = {resource: 0 for resource in ResourceType}
+        
+        for character in self.population:
+            if not character.alive:
+                continue
+                
+            # Production based on profession and skills
+            if character.profession == 'Farmer':
+                production[ResourceType.FOOD] += character.skills['farming'] // 10
+            elif character.profession == 'Hunter':
+                production[ResourceType.FOOD] += character.skills['hunting'] // 15
+            elif character.profession == 'Crafter':
+                production[ResourceType.WOOD] += character.skills['crafting'] // 20
+                production[ResourceType.STONE] += character.skills['crafting'] // 25
+            elif character.profession == 'Builder':
+                production[ResourceType.STONE] += character.skills['building'] // 15
+            elif character.profession == 'Shaman':
+                production[ResourceType.KNOWLEDGE] += character.skills['magic'] // 10
+        
+        return production
+    
+    def update_settlement(self):
+        """Update settlement each turn"""
+        # Population growth/decline
+        living_pop = self.get_total_population()
+        
+        # Resource consumption
+        food_needed = living_pop * 2
+        food_available = self.resources[ResourceType.FOOD]
+        
+        if food_available < food_needed:
+            # Starvation effects
+            self.happiness -= 10
+            starvation_deaths = min(living_pop // 4, (food_needed - food_available) // 2)
+            for _ in range(starvation_deaths):
+                if self.population:
+                    victim = random.choice([c for c in self.population if c.alive])
+                    victim.alive = False
+        
+        # Resource production
+        production = self.get_resource_production()
+        for resource, amount in production.items():
+            self.resources[resource] += amount
+        
+        # Resource consumption
+        self.resources[ResourceType.FOOD] = max(0, self.resources[ResourceType.FOOD] - food_needed)
+        
+        # Technology advancement
+        knowledge_for_tech = self.resources[ResourceType.KNOWLEDGE] // 100
+        if knowledge_for_tech > 0:
+            available_techs = [tech for tech in TechType if self.technologies[tech] < 5]
+            if available_techs:
+                tech_to_advance = random.choice(available_techs)
+                self.technologies[tech_to_advance] += 1
+                self.resources[ResourceType.KNOWLEDGE] -= 100
+        
+        # Culture development
+        self.culture_points += living_pop // 10
+        
+        # Happiness effects
+        if self.happiness > 70:
+            self.growth_rate = 1.2
+        elif self.happiness < 30:
+            self.growth_rate = 0.8
+        else:
+            self.growth_rate = 1.0
+
+class Civilization:
+    """Complete civilization with settlements, technology, and culture"""
+    def __init__(self, civ_id: int, name: str = ""):
+        self.id = civ_id
+        self.name = name if name else self.generate_name()
+        self.color = CIVILIZATION_COLORS[civ_id % len(CIVILIZATION_COLORS)]
+        self.settlements = []
+        self.characters = []
+        self.technologies = {tech: 0 for tech in TechType}
+        self.culture = {
+            'art_style': random.choice(['Geometric', 'Organic', 'Abstract', 'Realistic']),
+            'values': random.choice(['Peaceful', 'Aggressive', 'Scholarly', 'Mercantile']),
+            'religion': random.choice(['Ancestor Worship', 'Nature Spirits', 'Sky Gods', 'Earth Mother']),
+            'government': random.choice(['Tribal', 'Monarchy', 'Council', 'Democracy'])
+        }
+        self.diplomacy = {}  # other_civ_id -> relationship (-100 to 100)
+        self.wars = []
+        self.trade_agreements = []
+        self.total_population = 0
+        
+    def generate_name(self) -> str:
+        """Generate civilization name"""
+        prefixes = ["The", "Great", "Ancient", "Noble", "Proud", "Wise", "Strong", "Free"]
+        roots = ["Axel", "Borin", "Celt", "Drak", "Elf", "Goth", "Hun", "Kelt", "Nord", "Orc", "Pict", "Sax", "Tyr", "Van"]
+        suffixes = ["ans", "ians", "ites", "ese", "ish", "ic", "ar", "er", "en", "on"]
+        
+        if random.random() < 0.4:
+            return random.choice(prefixes) + " " + random.choice(roots) + random.choice(suffixes)
+        else:
+            return random.choice(roots) + random.choice(suffixes)
+    
+    def add_settlement(self, settlement: Settlement):
+        """Add settlement to civilization"""
+        self.settlements.append(settlement)
+        settlement.civilization_id = self.id
+    
+    def get_total_population(self) -> int:
+        """Get total population across all settlements"""
+        return sum(settlement.get_total_population() for settlement in self.settlements)
+    
+    def get_total_resources(self) -> Dict[ResourceType, int]:
+        """Get total resources across all settlements"""
+        total = {resource: 0 for resource in ResourceType}
+        for settlement in self.settlements:
+            for resource, amount in settlement.resources.items():
+                total[resource] += amount
+        return total
+    
+    def update_civilization(self):
+        """Update entire civilization"""
+        # Update all settlements
+        for settlement in self.settlements:
+            settlement.update_settlement()
+        
+        # Update total population
+        self.total_population = self.get_total_population()
+        
+        # Technology sharing between settlements
+        for tech in TechType:
+            max_tech_level = max(s.technologies[tech] for s in self.settlements)
+            for settlement in self.settlements:
+                if settlement.technologies[tech] < max_tech_level:
+                    # Slow tech spread
+                    if random.random() < 0.1:
+                        settlement.technologies[tech] += 1
+        
+        # Diplomacy updates
+        for other_civ_id in self.diplomacy:
+            # Gradual relationship decay toward neutral
+            current_rel = self.diplomacy[other_civ_id]
+            if current_rel > 0:
+                self.diplomacy[other_civ_id] = max(0, current_rel - 1)
+            elif current_rel < 0:
+                self.diplomacy[other_civ_id] = min(0, current_rel + 1)
+
+class WorldMap:
+    """Game world with terrain, resources, and biomes"""
     def __init__(self):
-        self.grid = np.zeros((GRID_HEIGHT, GRID_WIDTH), dtype=object)
-        self.resource_grid = np.zeros((GRID_HEIGHT, GRID_WIDTH), dtype=float)
-        self.water_grid = np.zeros((GRID_HEIGHT, GRID_WIDTH), dtype=float)
+        self.terrain = np.full((GRID_HEIGHT, GRID_WIDTH), TerrainType.GRASS, dtype=object)
+        self.resources = np.zeros((GRID_HEIGHT, GRID_WIDTH, len(ResourceType)), dtype=int)
+        self.biomes = np.full((GRID_HEIGHT, GRID_WIDTH), 'temperate', dtype=object)
+        self.elevation = np.zeros((GRID_HEIGHT, GRID_WIDTH), dtype=float)
+        self.temperature = np.full((GRID_HEIGHT, GRID_WIDTH), 20.0, dtype=float)
+        self.rainfall = np.full((GRID_HEIGHT, GRID_WIDTH), 0.5, dtype=float)
         
-        self.running = False
-        self.speed = 5  # Updates per second
-        self.last_update = time.time()
-        self.generation = 0
-        self.total_time = 0.0
-        
-        # Environment
-        self.environment = Environment()
-        
-        # Population statistics
-        self.population_stats = {
-            PLANT: 0,
-            HERBIVORE: 0,
-            CARNIVORE: 0,
-            OMNIVORE: 0,
-            DECOMPOSER: 0
-        }
-        
-        # Visual settings
-        self.view_mode = 0  # 0: Species, 1: Energy, 2: Age, 3: Resources, 4: Environment
-        self.show_grid = False
-        self.show_stats = True
-        self.pixel_size = CELL_SIZE
-        
-        # Ecosystem settings
-        self.carrying_capacity = 1000
-        self.mutation_rate = 0.01
-        self.reproduction_rate = 0.1
-        self.predation_rate = 0.05
-        
-        # Advanced features
-        self.genetic_diversity = True
-        self.evolution_tracking = True
-        self.climate_effects = True
-        
-        self.view_modes = {
-            0: "SPECIES.VIEW",
-            1: "ENERGY.LEVELS",
-            2: "AGE.DISTRIBUTION",
-            3: "RESOURCE.MAP",
-            4: "ENVIRONMENT.DATA"
-        }
-        
-        self.initialize_ecosystem()
+        self.generate_world()
     
-    def initialize_ecosystem(self):
-        """Initialize the ecosystem with balanced populations"""
-        self.clear_ecosystem()
-        
-        # Add water sources
-        for _ in range(15):
-            x = random.randint(0, GRID_WIDTH - 1)
-            y = random.randint(0, GRID_HEIGHT - 1)
-            for dx in range(-2, 3):
-                for dy in range(-2, 3):
-                    nx, ny = x + dx, y + dy
-                    if 0 <= nx < GRID_WIDTH and 0 <= ny < GRID_HEIGHT:
-                        self.water_grid[ny][nx] = 1.0
-        
-        # Add initial plant population
-        for _ in range(200):
-            x = random.randint(0, GRID_WIDTH - 1)
-            y = random.randint(0, GRID_HEIGHT - 1)
-            if self.grid[y][x] is None:
-                self.grid[y][x] = Species(PLANT, x, y)
-                self.resource_grid[y][x] = 0.5
-        
-        # Add herbivores
-        for _ in range(50):
-            x = random.randint(0, GRID_WIDTH - 1)
-            y = random.randint(0, GRID_HEIGHT - 1)
-            if self.grid[y][x] is None:
-                self.grid[y][x] = Species(HERBIVORE, x, y)
-        
-        # Add carnivores
-        for _ in range(20):
-            x = random.randint(0, GRID_WIDTH - 1)
-            y = random.randint(0, GRID_HEIGHT - 1)
-            if self.grid[y][x] is None:
-                self.grid[y][x] = Species(CARNIVORE, x, y)
-        
-        # Add omnivores
-        for _ in range(30):
-            x = random.randint(0, GRID_WIDTH - 1)
-            y = random.randint(0, GRID_HEIGHT - 1)
-            if self.grid[y][x] is None:
-                self.grid[y][x] = Species(OMNIVORE, x, y)
-        
-        # Add decomposers
-        for _ in range(40):
-            x = random.randint(0, GRID_WIDTH - 1)
-            y = random.randint(0, GRID_HEIGHT - 1)
-            if self.grid[y][x] is None:
-                self.grid[y][x] = Species(DECOMPOSER, x, y)
-        
-        self.generation = 0
-        self.update_population_stats()
-    
-    def clear_ecosystem(self):
-        """Clear the entire ecosystem"""
-        self.grid.fill(None)
-        self.resource_grid.fill(0.0)
-        self.water_grid.fill(0.0)
-        self.generation = 0
-        self.population_stats = {k: 0 for k in self.population_stats}
-    
-    def update_population_stats(self):
-        """Update population statistics"""
-        self.population_stats = {k: 0 for k in self.population_stats}
-        
+    def generate_world(self):
+        """Generate the world terrain and resources"""
+        # Generate elevation using simple noise
         for y in range(GRID_HEIGHT):
             for x in range(GRID_WIDTH):
-                organism = self.grid[y][x]
-                if organism is not None:
-                    self.population_stats[organism.type] += 1
+                # Simple pseudo-noise for elevation
+                noise = (math.sin(x * 0.1) + math.sin(y * 0.1) + 
+                        math.sin(x * 0.05) + math.sin(y * 0.05)) / 4
+                self.elevation[y][x] = max(0, min(1, 0.5 + noise * 0.3))
+        
+        # Generate temperature based on latitude
+        for y in range(GRID_HEIGHT):
+            for x in range(GRID_WIDTH):
+                # Temperature decreases toward poles and with elevation
+                latitude_factor = 1.0 - abs(y - GRID_HEIGHT/2) / (GRID_HEIGHT/2)
+                elevation_factor = 1.0 - self.elevation[y][x] * 0.5
+                self.temperature[y][x] = 30 * latitude_factor * elevation_factor
+        
+        # Generate rainfall using simple patterns
+        for y in range(GRID_HEIGHT):
+            for x in range(GRID_WIDTH):
+                # More rain in middle latitudes and near water
+                self.rainfall[y][x] = random.uniform(0.2, 0.8)
+        
+        # Generate terrain based on elevation, temperature, and rainfall
+        for y in range(GRID_HEIGHT):
+            for x in range(GRID_WIDTH):
+                elevation = self.elevation[y][x]
+                temp = self.temperature[y][x]
+                rain = self.rainfall[y][x]
+                
+                if elevation < 0.2:
+                    self.terrain[y][x] = TerrainType.WATER
+                elif elevation > 0.8:
+                    if temp < 5:
+                        self.terrain[y][x] = TerrainType.SNOW
+                    else:
+                        self.terrain[y][x] = TerrainType.MOUNTAIN
+                elif rain < 0.3:
+                    self.terrain[y][x] = TerrainType.DESERT
+                elif rain > 0.7:
+                    if temp > 25:
+                        self.terrain[y][x] = TerrainType.SWAMP
+                    else:
+                        self.terrain[y][x] = TerrainType.FOREST
+                else:
+                    self.terrain[y][x] = TerrainType.GRASS
+                
+                # Volcanic terrain (rare)
+                if random.random() < 0.01:
+                    self.terrain[y][x] = TerrainType.VOLCANIC
+        
+        # Place resources based on terrain
+        for y in range(GRID_HEIGHT):
+            for x in range(GRID_WIDTH):
+                terrain = self.terrain[y][x]
+                
+                if terrain == TerrainType.FOREST:
+                    self.resources[y][x][ResourceType.WOOD.value] = random.randint(50, 200)
+                elif terrain == TerrainType.MOUNTAIN:
+                    self.resources[y][x][ResourceType.STONE.value] = random.randint(100, 300)
+                    self.resources[y][x][ResourceType.METAL.value] = random.randint(20, 100)
+                elif terrain == TerrainType.GRASS:
+                    self.resources[y][x][ResourceType.FOOD.value] = random.randint(30, 150)
+                elif terrain == TerrainType.WATER:
+                    self.resources[y][x][ResourceType.FOOD.value] = random.randint(20, 100)
+                elif terrain == TerrainType.VOLCANIC:
+                    self.resources[y][x][ResourceType.ENERGY.value] = random.randint(100, 500)
     
-    def get_neighbors(self, x, y, radius=1):
-        """Get neighboring organisms within radius"""
-        neighbors = []
-        for dy in range(-radius, radius + 1):
-            for dx in range(-radius, radius + 1):
-                if dx == 0 and dy == 0:
-                    continue
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < GRID_WIDTH and 0 <= ny < GRID_HEIGHT:
-                    if self.grid[ny][nx] is not None:
-                        neighbors.append(self.grid[ny][nx])
-        return neighbors
+    def get_terrain_color(self, terrain_type: TerrainType) -> Tuple[int, int, int]:
+        """Get color for terrain type"""
+        terrain_map = {
+            TerrainType.WATER: TERRAIN_COLORS['water'],
+            TerrainType.GRASS: TERRAIN_COLORS['grass'],
+            TerrainType.FOREST: TERRAIN_COLORS['forest'],
+            TerrainType.MOUNTAIN: TERRAIN_COLORS['mountain'],
+            TerrainType.DESERT: TERRAIN_COLORS['desert'],
+            TerrainType.SNOW: TERRAIN_COLORS['snow'],
+            TerrainType.SWAMP: TERRAIN_COLORS['swamp'],
+            TerrainType.VOLCANIC: TERRAIN_COLORS['volcanic']
+        }
+        return terrain_map.get(terrain_type, (100, 100, 100))
+
+class CivilizationSimulator:
+    """Main civilization simulation game"""
+    def __init__(self):
+        self.world = WorldMap()
+        self.civilizations = []
+        self.all_characters = []
+        self.settlements = []
+        self.running = False
+        self.paused = False
+        self.speed = 1
+        self.year = 0
+        self.day = 0
+        self.selected_character = None
+        self.selected_settlement = None
+        self.camera_x = 0
+        self.camera_y = 0
+        self.zoom = 1.0
+        
+        # UI state
+        self.view_mode = 0  # 0: Overview, 1: Terrain, 2: Resources, 3: Demographics, 4: Diplomacy
+        self.show_hud = True
+        self.show_names = True
+        self.show_stats = True
+        self.character_creation_mode = False
+        self.current_civilization = 0
+        
+        # Performance optimization
+        self.last_update = time.time()
+        self.update_interval = 0.1  # Update every 0.1 seconds
+        
+        self.view_mode_names = [
+            "OVERVIEW",
+            "TERRAIN",
+            "RESOURCES",
+            "DEMOGRAPHICS",
+            "DIPLOMACY"
+        ]
+        
+        self.initialize_world()
     
-    def find_empty_nearby(self, x, y, radius=2):
-        """Find empty spaces nearby"""
-        empty_spots = []
-        for dy in range(-radius, radius + 1):
-            for dx in range(-radius, radius + 1):
-                if dx == 0 and dy == 0:
-                    continue
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < GRID_WIDTH and 0 <= ny < GRID_HEIGHT:
-                    if self.grid[ny][nx] is None:
-                        empty_spots.append((nx, ny))
-        return empty_spots
-    
-    def process_organism(self, organism, x, y):
-        """Process a single organism's behavior"""
-        if organism is None:
-            return
-        
-        # Age the organism
-        if not organism.age_one_turn():
-            self.grid[y][x] = None
-            if organism.type != PLANT:
-                # Add nutrients from decomposition
-                self.resource_grid[y][x] = min(1.0, self.resource_grid[y][x] + 0.3)
-            return
-        
-        # Apply environmental effects
-        survival_modifier = self.environment.get_survival_modifier(organism.type)
-        organism.energy *= survival_modifier
-        
-        # Species-specific behavior
-        if organism.type == PLANT:
-            self.process_plant(organism, x, y)
-        elif organism.type == HERBIVORE:
-            self.process_herbivore(organism, x, y)
-        elif organism.type == CARNIVORE:
-            self.process_carnivore(organism, x, y)
-        elif organism.type == OMNIVORE:
-            self.process_omnivore(organism, x, y)
-        elif organism.type == DECOMPOSER:
-            self.process_decomposer(organism, x, y)
-        
-        # Reproduction
-        if organism.can_reproduce():
-            self.attempt_reproduction(organism, x, y)
-    
-    def process_plant(self, plant, x, y):
-        """Process plant behavior"""
-        # Photosynthesis (more effective during day)
-        light_efficiency = 0.5 + 0.5 * max(0, math.sin(self.environment.day_cycle * 2 * math.pi))
-        co2_bonus = min(2.0, self.environment.co2_level * 20)
-        water_access = self.water_grid[y][x]
-        
-        photosynthesis_rate = 2 * plant.efficiency * light_efficiency * co2_bonus * (0.5 + 0.5 * water_access)
-        plant.energy += photosynthesis_rate
-        
-        # Absorb nutrients
-        if self.resource_grid[y][x] > 0:
-            absorbed = min(self.resource_grid[y][x], 5 * plant.efficiency)
-            plant.energy += absorbed
-            self.resource_grid[y][x] -= absorbed
-        
-        # Cap energy
-        plant.energy = min(plant.energy, plant.max_energy)
-        
-        # Build reproductive energy
-        if plant.energy > plant.reproduction_threshold * 0.8:
-            plant.reproductive_energy += 2
-    
-    def process_herbivore(self, herbivore, x, y):
-        """Process herbivore behavior"""
-        # Look for plants to eat
-        neighbors = self.get_neighbors(x, y)
-        plants = [n for n in neighbors if n.type == PLANT]
-        
-        if plants and herbivore.energy < herbivore.max_energy * 0.8:
-            target = random.choice(plants)
-            # Energy transfer (with efficiency loss)
-            energy_gained = min(target.energy * 0.6 * herbivore.efficiency, 20)
-            herbivore.energy += energy_gained
-            target.energy -= energy_gained / 0.6
-        
-        # Movement (costs energy)
-        if random.random() < herbivore.speed:
-            empty_spots = self.find_empty_nearby(x, y)
-            if empty_spots:
-                new_x, new_y = random.choice(empty_spots)
-                self.grid[y][x] = None
-                self.grid[new_y][new_x] = herbivore
-                herbivore.x, herbivore.y = new_x, new_y
-                herbivore.energy -= 1
-        
-        # Build reproductive energy
-        if herbivore.energy > herbivore.reproduction_threshold * 0.7:
-            herbivore.reproductive_energy += 1
-    
-    def process_carnivore(self, carnivore, x, y):
-        """Process carnivore behavior"""
-        # Hunt prey
-        neighbors = self.get_neighbors(x, y, 2)  # Larger hunting radius
-        prey = [n for n in neighbors if n.type in [HERBIVORE, OMNIVORE]]
-        
-        if prey and carnivore.energy < carnivore.max_energy * 0.9:
-            # Hunting success based on aggression and speed
-            hunt_success = carnivore.aggression * carnivore.speed * 0.5
-            if random.random() < hunt_success:
-                target = random.choice(prey)
-                # Energy transfer
-                energy_gained = min(target.energy * 0.8 * carnivore.efficiency, 30)
-                carnivore.energy += energy_gained
-                # Kill prey
-                for py in range(GRID_HEIGHT):
-                    for px in range(GRID_WIDTH):
-                        if self.grid[py][px] is target:
-                            self.grid[py][px] = None
-                            self.resource_grid[py][px] += 0.2
+    def initialize_world(self):
+        """Initialize the world with starting civilizations"""
+        # Create initial civilizations
+        for i in range(4):  # Start with 4 civilizations
+            civ = Civilization(i)
+            self.civilizations.append(civ)
+            
+            # Create starting settlement
+            attempts = 0
+            while attempts < 100:  # Avoid infinite loop
+                x = random.randint(10, GRID_WIDTH - 10)
+                y = random.randint(10, GRID_HEIGHT - 10)
+                
+                # Check if location is suitable (not water, not too close to others)
+                if self.world.terrain[y][x] != TerrainType.WATER:
+                    suitable = True
+                    for settlement in self.settlements:
+                        if abs(settlement.x - x) < 15 or abs(settlement.y - y) < 15:
+                            suitable = False
                             break
+                    
+                    if suitable:
+                        settlement = Settlement(x, y, i)
+                        settlement.established_year = self.year
+                        civ.add_settlement(settlement)
+                        self.settlements.append(settlement)
+                        
+                        # Add starting population
+                        for _ in range(random.randint(8, 15)):
+                            character = Character(x, y, i)
+                            settlement.add_population(character)
+                            self.all_characters.append(character)
+                        
+                        break
+                
+                attempts += 1
         
-        # Movement (carnivores are more active)
-        if random.random() < carnivore.speed * 1.2:
-            empty_spots = self.find_empty_nearby(x, y, 2)
-            if empty_spots:
-                new_x, new_y = random.choice(empty_spots)
-                self.grid[y][x] = None
-                self.grid[new_y][new_x] = carnivore
-                carnivore.x, carnivore.y = new_x, new_y
-                carnivore.energy -= 2
-        
-        # Build reproductive energy
-        if carnivore.energy > carnivore.reproduction_threshold * 0.8:
-            carnivore.reproductive_energy += 1
+        # Initialize diplomacy
+        for i, civ1 in enumerate(self.civilizations):
+            for j, civ2 in enumerate(self.civilizations):
+                if i != j:
+                    # Start with neutral to slightly negative relations
+                    civ1.diplomacy[j] = random.randint(-20, 20)
     
-    def process_omnivore(self, omnivore, x, y):
-        """Process omnivore behavior"""
-        neighbors = self.get_neighbors(x, y)
-        
-        # Flexible diet
-        plants = [n for n in neighbors if n.type == PLANT]
-        prey = [n for n in neighbors if n.type == HERBIVORE and n.energy < omnivore.energy]
-        
-        if omnivore.energy < omnivore.max_energy * 0.8:
-            if plants and (not prey or random.random() < 0.7):
-                # Eat plants
-                target = random.choice(plants)
-                energy_gained = min(target.energy * 0.5 * omnivore.efficiency, 15)
-                omnivore.energy += energy_gained
-                target.energy -= energy_gained / 0.5
-            elif prey:
-                # Hunt small prey
-                hunt_success = omnivore.aggression * 0.3
-                if random.random() < hunt_success:
-                    target = random.choice(prey)
-                    energy_gained = min(target.energy * 0.7 * omnivore.efficiency, 25)
-                    omnivore.energy += energy_gained
-                    for py in range(GRID_HEIGHT):
-                        for px in range(GRID_WIDTH):
-                            if self.grid[py][px] is target:
-                                self.grid[py][px] = None
-                                self.resource_grid[py][px] += 0.15
-                                break
-        
-        # Moderate movement
-        if random.random() < omnivore.speed * 0.8:
-            empty_spots = self.find_empty_nearby(x, y)
-            if empty_spots:
-                new_x, new_y = random.choice(empty_spots)
-                self.grid[y][x] = None
-                self.grid[new_y][new_x] = omnivore
-                omnivore.x, omnivore.y = new_x, new_y
-                omnivore.energy -= 1.5
-        
-        # Build reproductive energy
-        if omnivore.energy > omnivore.reproduction_threshold * 0.75:
-            omnivore.reproductive_energy += 1
-    
-    def process_decomposer(self, decomposer, x, y):
-        """Process decomposer behavior"""
-        # Consume organic matter
-        if self.resource_grid[y][x] > 0:
-            consumed = min(self.resource_grid[y][x], 10 * decomposer.efficiency)
-            decomposer.energy += consumed * 2
-            self.resource_grid[y][x] -= consumed
-        
-        # Convert waste to nutrients
-        neighbors = self.get_neighbors(x, y)
-        for neighbor in neighbors:
-            if neighbor.energy < neighbor.max_energy * 0.3:  # Sick/dying organisms
-                decomposer.energy += 1
-                self.resource_grid[y][x] += 0.1
-        
-        # Limited movement
-        if random.random() < decomposer.speed * 0.3:
-            empty_spots = self.find_empty_nearby(x, y, 1)
-            if empty_spots:
-                new_x, new_y = random.choice(empty_spots)
-                self.grid[y][x] = None
-                self.grid[new_y][new_x] = decomposer
-                decomposer.x, decomposer.y = new_x, new_y
-                decomposer.energy -= 0.5
-        
-        # Build reproductive energy
-        if decomposer.energy > decomposer.reproduction_threshold * 0.6:
-            decomposer.reproductive_energy += 1
-    
-    def attempt_reproduction(self, organism, x, y):
-        """Attempt reproduction for an organism"""
-        empty_spots = self.find_empty_nearby(x, y)
-        if not empty_spots:
-            return
-        
-        # Check for partners (for sexual reproduction)
-        neighbors = self.get_neighbors(x, y)
-        partners = [n for n in neighbors if n.type == organism.type and n.can_reproduce()]
-        
-        partner = random.choice(partners) if partners else None
-        child = organism.reproduce(partner)
-        
-        if child:
-            child_x, child_y = random.choice(empty_spots)
-            child.x, child.y = child_x, child_y
-            self.grid[child_y][child_x] = child
-    
-    def update_generation(self):
-        """Update the ecosystem simulation"""
-        if not self.running:
-            return
-        
+    def update_simulation(self):
+        """Update the entire simulation"""
         current_time = time.time()
-        if current_time - self.last_update < 1.0 / self.speed:
+        if current_time - self.last_update < self.update_interval:
             return
         
         self.last_update = current_time
-        self.total_time += 1.0 / self.speed
         
-        # Update environment
-        self.environment.update(self.total_time)
+        if self.paused:
+            return
         
-        # Create a list of all organisms to process
-        organisms_to_process = []
-        for y in range(GRID_HEIGHT):
-            for x in range(GRID_WIDTH):
-                if self.grid[y][x] is not None:
-                    organisms_to_process.append((self.grid[y][x], x, y))
+        # Update day/year
+        self.day += 1
+        if self.day >= 365:
+            self.day = 0
+            self.year += 1
+            
+            # Annual updates
+            for character in self.all_characters:
+                if character.alive:
+                    character.age_one_year()
+            
+            # Settlement and civilization updates
+            for settlement in self.settlements:
+                settlement.update_settlement()
+            
+            for civ in self.civilizations:
+                civ.update_civilization()
         
-        # Shuffle to avoid processing bias
-        random.shuffle(organisms_to_process)
-        
-        # Process each organism
-        for organism, x, y in organisms_to_process:
-            if self.grid[y][x] is organism:  # Organism might have moved or died
-                self.process_organism(organism, x, y)
-        
-        # Environmental resource regeneration
-        self.regenerate_resources()
-        
-        self.generation += 1
-        self.update_population_stats()
+        # Character behavior and reproduction
+        if self.day % 30 == 0:  # Monthly updates
+            self.update_character_behavior()
+            self.handle_reproduction()
+            self.handle_migration()
     
-    def regenerate_resources(self):
-        """Regenerate environmental resources"""
-        for y in range(GRID_HEIGHT):
-            for x in range(GRID_WIDTH):
-                # Slow resource regeneration near water
-                if self.water_grid[y][x] > 0:
-                    self.resource_grid[y][x] = min(1.0, self.resource_grid[y][x] + 0.01)
-                
-                # Seasonal effects
-                if self.environment.season == 0:  # Spring - resource boost
-                    self.resource_grid[y][x] = min(1.0, self.resource_grid[y][x] + 0.005)
-                elif self.environment.season == 2:  # Autumn - resource decay
-                    self.resource_grid[y][x] = max(0.0, self.resource_grid[y][x] - 0.002)
-    
-    def get_cell_color(self, x, y):
-        """Get color based on view mode and cell content"""
-        organism = self.grid[y][x]
-        
-        if self.view_mode == 0:  # Species view
-            if organism is None:
-                # Show water and resources
-                if self.water_grid[y][x] > 0:
-                    intensity = int(100 + self.water_grid[y][x] * 100)
-                    return (0, 0, intensity)
-                elif self.resource_grid[y][x] > 0:
-                    intensity = int(50 + self.resource_grid[y][x] * 100)
-                    return (intensity, intensity//2, 0)
+    def update_character_behavior(self):
+        """Update character behavior, relationships, and actions"""
+        for character in self.all_characters:
+            if not character.alive:
+                continue
+            
+            # Random movement
+            if random.random() < 0.3:
+                dx = random.randint(-2, 2)
+                dy = random.randint(-2, 2)
+                new_x = max(0, min(GRID_WIDTH - 1, character.x + dx))
+                new_y = max(0, min(GRID_HEIGHT - 1, character.y + dy))
+                character.x = new_x
+                character.y = new_y
+            
+            # Skill development
+            if random.random() < 0.1:
+                skill = random.choice(list(character.skills.keys()))
+                character.skills[skill] = min(100, character.skills[skill] + 1)
+            
+            # Relationship building
+            nearby_characters = self.get_nearby_characters(character, 5)
+            for other in nearby_characters:
+                if other.civilization_id == character.civilization_id:
+                    # Same civilization - build friendship
+                    if other.name not in character.relationships:
+                        character.relationships[other.name] = 0
+                    
+                    compatibility = abs(character.personality_traits['social'] - other.personality_traits['social'])
+                    if compatibility < 0.3:
+                        character.relationships[other.name] = min(100, character.relationships[other.name] + 1)
                 else:
-                    return CYBER_BLACK
-            
-            # Species colors with health/energy modulation
-            base_colors = {
-                PLANT: PLANT_GREEN,
-                HERBIVORE: NEON_YELLOW,
-                CARNIVORE: PREDATOR_RED,
-                OMNIVORE: NEON_PURPLE,
-                DECOMPOSER: NEON_ORANGE
-            }
-            
-            if organism.type in base_colors:
-                base_color = base_colors[organism.type]
-                health_factor = organism.health / 100
-                energy_factor = organism.energy / organism.max_energy
-                vitality = (health_factor + energy_factor) / 2
-                
-                return tuple(max(10, min(255, int(c * vitality))) for c in base_color)
-        
-        elif self.view_mode == 1:  # Energy view
-            if organism is None:
-                return CYBER_BLACK
-            energy_ratio = organism.energy / organism.max_energy
-            intensity = int(255 * energy_ratio)
-            return (intensity, intensity, 0)
-        
-        elif self.view_mode == 2:  # Age view
-            if organism is None:
-                return CYBER_BLACK
-            age_ratio = min(1.0, organism.age / organism.lifespan)
-            return (int(255 * age_ratio), 0, int(255 * (1 - age_ratio)))
-        
-        elif self.view_mode == 3:  # Resource view
-            resource_intensity = int(255 * min(1.0, self.resource_grid[y][x]))
-            water_intensity = int(255 * min(1.0, self.water_grid[y][x]))
-            return (resource_intensity, water_intensity, 50)
-        
-        elif self.view_mode == 4:  # Environment view
-            temp_normalized = (self.environment.temperature + 20) / 60  # -20 to 40 range
-            humidity_color = int(255 * self.environment.humidity)
-            temp_color = int(255 * temp_normalized)
-            return (temp_color, humidity_color, 100)
-        
-        return CYBER_BLACK
+                    # Different civilization - depends on diplomacy
+                    civ_relation = self.civilizations[character.civilization_id].diplomacy.get(other.civilization_id, 0)
+                    if civ_relation > 0:
+                        if other.name not in character.relationships:
+                            character.relationships[other.name] = 0
+                        character.relationships[other.name] = min(50, character.relationships[other.name] + 1)
     
-    def draw_grid(self, surface):
-        """Draw the ecosystem grid"""
+    def handle_reproduction(self):
+        """Handle character reproduction"""
+        for character in self.all_characters:
+            if not character.alive or not character.can_reproduce():
+                continue
+            
+            if character.family['spouse'] is None:
+                # Look for potential spouse
+                potential_partners = [
+                    c for c in self.all_characters 
+                    if (c.alive and c.can_reproduce() and 
+                        c.civilization_id == character.civilization_id and
+                        c.gender != character.gender and
+                        c.family['spouse'] is None and
+                        abs(c.x - character.x) < 10 and
+                        abs(c.y - character.y) < 10)
+                ]
+                
+                if potential_partners and random.random() < 0.1:
+                    partner = random.choice(potential_partners)
+                    character.family['spouse'] = partner
+                    partner.family['spouse'] = character
+            
+            # Have children
+            if (character.family['spouse'] is not None and 
+                character.family['spouse'].alive and 
+                len(character.family['children']) < 5 and
+                random.random() < 0.05):
+                
+                child = character.reproduce_with(character.family['spouse'])
+                if child:
+                    self.all_characters.append(child)
+                    
+                    # Add to appropriate settlement
+                    nearest_settlement = self.find_nearest_settlement(child.x, child.y, child.civilization_id)
+                    if nearest_settlement:
+                        nearest_settlement.add_population(child)
+    
+    def handle_migration(self):
+        """Handle character migration between settlements"""
+        for character in self.all_characters:
+            if not character.alive:
+                continue
+            
+            # Small chance of migration
+            if random.random() < 0.01:
+                # Find settlements in same civilization
+                same_civ_settlements = [s for s in self.settlements if s.civilization_id == character.civilization_id]
+                if len(same_civ_settlements) > 1:
+                    new_settlement = random.choice(same_civ_settlements)
+                    character.x = new_settlement.x + random.randint(-5, 5)
+                    character.y = new_settlement.y + random.randint(-5, 5)
+    
+    def get_nearby_characters(self, character: Character, radius: int) -> List[Character]:
+        """Get characters within radius of given character"""
+        nearby = []
+        for other in self.all_characters:
+            if other != character and other.alive:
+                distance = math.sqrt((other.x - character.x)**2 + (other.y - character.y)**2)
+                if distance <= radius:
+                    nearby.append(other)
+        return nearby
+    
+    def find_nearest_settlement(self, x: int, y: int, civ_id: int) -> Optional[Settlement]:
+        """Find nearest settlement for given civilization"""
+        nearest = None
+        min_distance = float('inf')
+        
+        for settlement in self.settlements:
+            if settlement.civilization_id == civ_id:
+                distance = math.sqrt((settlement.x - x)**2 + (settlement.y - y)**2)
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest = settlement
+        
+        return nearest
+    
+    def handle_mouse_click(self, mouse_pos: Tuple[int, int]):
+        """Handle mouse click for character/settlement selection"""
+        world_x = (mouse_pos[0] - self.camera_x) // TILE_SIZE
+        world_y = (mouse_pos[1] - self.camera_y) // TILE_SIZE
+        
+        # Check for character selection
+        for character in self.all_characters:
+            if character.alive and abs(character.x - world_x) <= 1 and abs(character.y - world_y) <= 1:
+                self.selected_character = character
+                self.selected_settlement = None
+                return
+        
+        # Check for settlement selection
+        for settlement in self.settlements:
+            if abs(settlement.x - world_x) <= 3 and abs(settlement.y - world_y) <= 3:
+                self.selected_settlement = settlement
+                self.selected_character = None
+                return
+        
+        # Clear selection
+        self.selected_character = None
+        self.selected_settlement = None
+    
+    def enter_character_creation_mode(self):
+        """Enter character creation mode"""
+        self.character_creation_mode = True
+        self.paused = True
+    
+    def create_custom_character(self, x: int, y: int, customization: Dict):
+        """Create a custom character with player customization"""
+        character = Character(x, y, self.current_civilization)
+        
+        # Apply customizations
+        if 'name' in customization:
+            character.name = customization['name']
+        if 'profession' in customization:
+            character.profession = customization['profession']
+        if 'appearance' in customization:
+            character.appearance.update(customization['appearance'])
+        
+        # Custom DNA modifications
+        if 'dna_mods' in customization:
+            for trait, value in customization['dna_mods'].items():
+                if hasattr(character.dna, trait):
+                    setattr(character.dna, trait, max(0.0, min(1.0, value)))
+        
+        # Recalculate stats based on modified DNA
+        character.health = int(character.dna.endurance * 100)
+        character.max_health = character.health
+        character.energy = int(character.dna.endurance * 100)
+        character.max_energy = character.energy
+        
+        # Recalculate skills
+        character.skills = {
+            'combat': int(character.dna.strength * 50 + character.dna.agility * 30),
+            'crafting': int(character.dna.creativity * 50 + character.dna.intelligence * 30),
+            'farming': int(character.dna.endurance * 40 + character.dna.intelligence * 20),
+            'hunting': int(character.dna.agility * 40 + character.dna.strength * 30),
+            'social': int(character.dna.charisma * 60 + character.dna.cooperation * 20),
+            'magic': int(character.dna.intelligence * 40 + character.dna.creativity * 40),
+            'building': int(character.dna.strength * 30 + character.dna.intelligence * 40),
+            'leadership': int(character.dna.charisma * 50 + character.dna.intelligence * 30)
+        }
+        
+        self.all_characters.append(character)
+        
+        # Add to appropriate settlement
+        nearest_settlement = self.find_nearest_settlement(x, y, self.current_civilization)
+        if nearest_settlement:
+            nearest_settlement.add_population(character)
+        
+        self.character_creation_mode = False
+        self.paused = False
+        return character
+    
+    def draw_world(self, surface):
+        """Draw the world terrain and entities"""
+        # Draw terrain
         for y in range(GRID_HEIGHT):
             for x in range(GRID_WIDTH):
-                color = self.get_cell_color(x, y)
-                rect = pygame.Rect(x * self.pixel_size, y * self.pixel_size, 
-                                 self.pixel_size, self.pixel_size)
-                pygame.draw.rect(surface, color, rect)
+                screen_x = x * TILE_SIZE + self.camera_x
+                screen_y = y * TILE_SIZE + self.camera_y
+                
+                if -TILE_SIZE <= screen_x < WIDTH and -TILE_SIZE <= screen_y < HEIGHT:
+                    if self.view_mode == 1:  # Terrain view
+                        color = self.world.get_terrain_color(self.world.terrain[y][x])
+                    elif self.view_mode == 2:  # Resources view
+                        # Show dominant resource
+                        max_resource = 0
+                        resource_color = (50, 50, 50)
+                        for i, resource in enumerate(ResourceType):
+                            if self.world.resources[y][x][i] > max_resource:
+                                max_resource = self.world.resources[y][x][i]
+                                if resource == ResourceType.FOOD:
+                                    resource_color = (100, 255, 100)
+                                elif resource == ResourceType.WOOD:
+                                    resource_color = (150, 100, 50)
+                                elif resource == ResourceType.STONE:
+                                    resource_color = (150, 150, 150)
+                                elif resource == ResourceType.METAL:
+                                    resource_color = (255, 200, 100)
+                                elif resource == ResourceType.ENERGY:
+                                    resource_color = (255, 100, 255)
+                        color = resource_color
+                    else:  # Overview
+                        color = self.world.get_terrain_color(self.world.terrain[y][x])
+                    
+                    pygame.draw.rect(surface, color, (screen_x, screen_y, TILE_SIZE, TILE_SIZE))
         
-        # Draw grid lines
-        if self.show_grid:
-            grid_color = (30, 30, 30)
-            for x in range(0, WIDTH, self.pixel_size):
-                pygame.draw.line(surface, grid_color, (x, 0), (x, HEIGHT))
-            for y in range(0, HEIGHT, self.pixel_size):
-                pygame.draw.line(surface, grid_color, (0, y), (WIDTH, y))
+        # Draw settlements
+        for settlement in self.settlements:
+            screen_x = settlement.x * TILE_SIZE + self.camera_x
+            screen_y = settlement.y * TILE_SIZE + self.camera_y
+            
+            if -TILE_SIZE <= screen_x < WIDTH and -TILE_SIZE <= screen_y < HEIGHT:
+                # Settlement color based on civilization
+                color = CIVILIZATION_COLORS[settlement.civilization_id % len(CIVILIZATION_COLORS)]
+                
+                # Settlement size based on population
+                size = min(TILE_SIZE * 3, TILE_SIZE + settlement.get_total_population() // 5)
+                
+                pygame.draw.rect(surface, color, (screen_x, screen_y, size, size))
+                
+                # Selection highlight
+                if settlement == self.selected_settlement:
+                    pygame.draw.rect(surface, NEON_YELLOW, (screen_x-2, screen_y-2, size+4, size+4), 2)
+                
+                # Draw settlement name
+                if self.show_names:
+                    font = pygame.font.Font(None, 16)
+                    text = font.render(settlement.name, True, NEON_CYAN)
+                    surface.blit(text, (screen_x, screen_y - 15))
+        
+        # Draw characters
+        for character in self.all_characters:
+            if not character.alive:
+                continue
+            
+            screen_x = character.x * TILE_SIZE + self.camera_x
+            screen_y = character.y * TILE_SIZE + self.camera_y
+            
+            if -TILE_SIZE <= screen_x < WIDTH and -TILE_SIZE <= screen_y < HEIGHT:
+                color = character.get_color()
+                
+                # Character size based on profession
+                size = TILE_SIZE - 1
+                if character.profession == 'Warrior':
+                    size = TILE_SIZE
+                
+                pygame.draw.rect(surface, color, (screen_x, screen_y, size, size))
+                
+                # Selection highlight
+                if character == self.selected_character:
+                    pygame.draw.rect(surface, NEON_YELLOW, (screen_x-1, screen_y-1, size+2, size+2), 2)
+                
+                # Draw character name
+                if self.show_names and character == self.selected_character:
+                    font = pygame.font.Font(None, 14)
+                    text = font.render(character.name, True, NEON_GREEN)
+                    surface.blit(text, (screen_x, screen_y - 12))
     
-    def draw_environmental_effects(self, surface):
-        """Draw environmental effect overlays"""
-        # Climate event indicators
-        if self.environment.drought:
-            # Yellow overlay
-            overlay = pygame.Surface((WIDTH, HEIGHT))
-            overlay.set_alpha(30)
-            overlay.fill(NEON_YELLOW)
-            surface.blit(overlay, (0, 0))
+    def draw_hud(self, surface):
+        """Draw the heads-up display"""
+        if not self.show_hud:
+            return
         
-        if self.environment.flood:
-            # Blue overlay
-            overlay = pygame.Surface((WIDTH, HEIGHT))
-            overlay.set_alpha(40)
-            overlay.fill(WATER_BLUE)
-            surface.blit(overlay, (0, 0))
+        # Background panel
+        hud_rect = pygame.Rect(0, 0, WIDTH, 60)
+        pygame.draw.rect(surface, (0, 0, 0, 180), hud_rect)
         
-        if self.environment.ice_age:
-            # Cyan overlay
-            overlay = pygame.Surface((WIDTH, HEIGHT))
-            overlay.set_alpha(35)
-            overlay.fill(NEON_CYAN)
-            surface.blit(overlay, (0, 0))
+        # Time display
+        font = pygame.font.Font(None, 24)
+        time_text = f"Year {self.year}, Day {self.day}"
+        text = font.render(time_text, True, NEON_CYAN)
+        surface.blit(text, (10, 10))
         
-        if self.environment.volcanic_activity:
-            # Red overlay
-            overlay = pygame.Surface((WIDTH, HEIGHT))
-            overlay.set_alpha(25)
-            overlay.fill(NEON_RED)
-            surface.blit(overlay, (0, 0))
+        # View mode
+        mode_text = f"View: {self.view_mode_names[self.view_mode]}"
+        text = font.render(mode_text, True, NEON_GREEN)
+        surface.blit(text, (10, 30))
+        
+        # Speed indicator
+        speed_text = f"Speed: {self.speed}x"
+        text = font.render(speed_text, True, NEON_YELLOW)
+        surface.blit(text, (200, 10))
+        
+        # Population count
+        total_pop = sum(len([c for c in self.all_characters if c.alive and c.civilization_id == civ.id]) 
+                       for civ in self.civilizations)
+        pop_text = f"Population: {total_pop}"
+        text = font.render(pop_text, True, NEON_ORANGE)
+        surface.blit(text, (200, 30))
+        
+        # Civilization count
+        civ_text = f"Civilizations: {len(self.civilizations)}"
+        text = font.render(civ_text, True, NEON_PURPLE)
+        surface.blit(text, (350, 10))
+        
+        # Pause indicator
+        if self.paused:
+            pause_text = "PAUSED"
+            text = font.render(pause_text, True, NEON_RED)
+            surface.blit(text, (350, 30))
     
-    def draw_statistics(self, surface):
-        """Draw detailed ecosystem statistics"""
+    def draw_character_info(self, surface):
+        """Draw selected character information"""
+        if not self.selected_character:
+            return
+        
+        char = self.selected_character
+        
+        # Info panel
+        panel_rect = pygame.Rect(WIDTH - 200, 70, 190, 200)
+        pygame.draw.rect(surface, (0, 0, 0, 200), panel_rect)
+        pygame.draw.rect(surface, NEON_CYAN, panel_rect, 2)
+        
+        y_offset = 80
         font = pygame.font.Font(None, 16)
-        small_font = pygame.font.Font(None, 14)
-        y_offset = 5
         
-        # Generation and time
-        gen_text = font.render(f"GEN: {self.generation}", True, NEON_GREEN)
-        surface.blit(gen_text, (5, y_offset))
+        # Character name and basic info
+        info_lines = [
+            f"Name: {char.name}",
+            f"Age: {char.age}",
+            f"Profession: {char.profession}",
+            f"Health: {char.health}/{char.max_health}",
+            f"Energy: {char.energy}/{char.max_energy}",
+            "",
+            "DNA Traits:",
+            f"Strength: {char.dna.strength:.2f}",
+            f"Intelligence: {char.dna.intelligence:.2f}",
+            f"Charisma: {char.dna.charisma:.2f}",
+            f"Agility: {char.dna.agility:.2f}",
+            f"Endurance: {char.dna.endurance:.2f}",
+            f"Creativity: {char.dna.creativity:.2f}"
+        ]
         
-        time_text = small_font.render(f"TIME: {self.total_time:.1f}s", True, NEON_CYAN)
-        surface.blit(time_text, (80, y_offset + 2))
-        y_offset += 20
+        for line in info_lines:
+            if line:
+                text = font.render(line, True, NEON_GREEN)
+                surface.blit(text, (WIDTH - 195, y_offset))
+            y_offset += 12
+    
+    def draw_settlement_info(self, surface):
+        """Draw selected settlement information"""
+        if not self.selected_settlement:
+            return
         
-        # Population counts
-        total_pop = sum(self.population_stats.values())
-        pop_text = font.render(f"TOTAL POP: {total_pop}", True, NEON_YELLOW)
-        surface.blit(pop_text, (5, y_offset))
-        y_offset += 18
+        settlement = self.selected_settlement
         
-        species_names = {
-            PLANT: "PLANTS",
-            HERBIVORE: "HERB",
-            CARNIVORE: "CARN", 
-            OMNIVORE: "OMNI",
-            DECOMPOSER: "DECOMP"
-        }
+        # Info panel
+        panel_rect = pygame.Rect(WIDTH - 200, 70, 190, 200)
+        pygame.draw.rect(surface, (0, 0, 0, 200), panel_rect)
+        pygame.draw.rect(surface, NEON_CYAN, panel_rect, 2)
         
-        colors = {
-            PLANT: PLANT_GREEN,
-            HERBIVORE: NEON_YELLOW,
-            CARNIVORE: PREDATOR_RED,
-            OMNIVORE: NEON_PURPLE,
-            DECOMPOSER: NEON_ORANGE
-        }
+        y_offset = 80
+        font = pygame.font.Font(None, 16)
         
-        for species_type, count in self.population_stats.items():
-            if species_type in species_names:
-                text = small_font.render(f"{species_names[species_type]}: {count}", 
-                                       True, colors[species_type])
-                surface.blit(text, (5, y_offset))
-                y_offset += 14
+        # Settlement info
+        info_lines = [
+            f"Name: {settlement.name}",
+            f"Population: {settlement.get_total_population()}",
+            f"Civilization: {self.civilizations[settlement.civilization_id].name}",
+            f"Happiness: {settlement.happiness}",
+            f"Defense: {settlement.defense}",
+            "",
+            "Resources:",
+            f"Food: {settlement.resources[ResourceType.FOOD]}",
+            f"Wood: {settlement.resources[ResourceType.WOOD]}",
+            f"Stone: {settlement.resources[ResourceType.STONE]}",
+            f"Metal: {settlement.resources[ResourceType.METAL]}",
+            f"Knowledge: {settlement.resources[ResourceType.KNOWLEDGE]}",
+            f"Energy: {settlement.resources[ResourceType.ENERGY]}"
+        ]
         
-        # Environmental status
-        y_offset += 5
-        env_text = font.render("ENVIRONMENT:", True, NEON_CYAN)
-        surface.blit(env_text, (5, y_offset))
-        y_offset += 16
-        
-        temp_text = small_font.render(f"TEMP: {self.environment.temperature:.1f}°C", 
-                                    True, NEON_BLUE)
-        surface.blit(temp_text, (5, y_offset))
-        y_offset += 14
-        
-        season_names = ["SPRING", "SUMMER", "AUTUMN", "WINTER"]
-        season_text = small_font.render(f"SEASON: {season_names[self.environment.season]}", 
-                                      True, NEON_GREEN)
-        surface.blit(season_text, (5, y_offset))
-        y_offset += 14
-        
-        # Climate warnings
-        if self.environment.drought:
-            drought_text = small_font.render("⚠ DROUGHT", True, NEON_YELLOW)
-            surface.blit(drought_text, (5, y_offset))
-            y_offset += 14
-        
-        if self.environment.flood:
-            flood_text = small_font.render("⚠ FLOOD", True, WATER_BLUE)
-            surface.blit(flood_text, (5, y_offset))
-            y_offset += 14
-        
-        if self.environment.ice_age:
-            ice_text = small_font.render("⚠ ICE AGE", True, NEON_CYAN)
-            surface.blit(ice_text, (5, y_offset))
-            y_offset += 14
-        
-        if self.environment.volcanic_activity:
-            volcano_text = small_font.render("⚠ VOLCANIC", True, NEON_RED)
-            surface.blit(volcano_text, (5, y_offset))
+        for line in info_lines:
+            if line:
+                text = font.render(line, True, NEON_GREEN)
+                surface.blit(text, (WIDTH - 195, y_offset))
+            y_offset += 12
     
     def draw_controls(self, surface):
         """Draw control instructions"""
-        font = pygame.font.Font(None, 12)
+        controls_rect = pygame.Rect(10, HEIGHT - 100, 300, 90)
+        pygame.draw.rect(surface, (0, 0, 0, 180), controls_rect)
+        
+        font = pygame.font.Font(None, 16)
         controls = [
-            "ECOSYSTEM CONTROLS:",
-            "SPACE: Play/Pause", "S: Step", "R: Reset", "C: Clear",
-            "↑↓: Speed", "V: View Mode", "G: Grid", "I: Initialize",
-            "",
-            "ENVIRONMENT:",
-            "D: Drought", "F: Flood", "T: Ice Age", "Y: Volcanic",
-            "",
-            "SPECIAL:",
-            "F11: Fullscreen", "ESC: Return to Launcher"
+            "SPACE - Pause/Resume",
+            "V - Change View Mode",
+            "F8 - Fullscreen",
+            "ESC - Return to Launcher",
+            "C - Create Character",
+            "Click - Select Character/Settlement"
         ]
         
-        y_start = HEIGHT - 180
         for i, control in enumerate(controls):
-            color = NEON_GREEN if control.endswith(":") else NEON_CYAN
-            if control.startswith("⚠"):
-                color = NEON_RED
-            
-            text = font.render(control, True, color)
-            surface.blit(text, (5, y_start + i * 11))
+            text = font.render(control, True, NEON_YELLOW)
+            surface.blit(text, (15, HEIGHT - 95 + i * 12))
     
-    def handle_mouse_input(self, mouse_pos, mouse_pressed):
-        """Handle mouse input for ecosystem manipulation"""
-        if mouse_pressed[0]:  # Left click - add organisms
-            mouse_x, mouse_y = mouse_pos
-            grid_x = mouse_x // self.pixel_size
-            grid_y = mouse_y // self.pixel_size
-            
-            if 0 <= grid_x < GRID_WIDTH and 0 <= grid_y < GRID_HEIGHT:
-                if self.grid[grid_y][grid_x] is None:
-                    # Cycle through species types
-                    species_type = random.choice([PLANT, HERBIVORE, CARNIVORE, OMNIVORE, DECOMPOSER])
-                    self.grid[grid_y][grid_x] = Species(species_type, grid_x, grid_y)
+    def handle_input(self, keys, events):
+        """Handle keyboard and mouse input"""
+        # Camera movement
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+            self.camera_x += 5
+        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+            self.camera_x -= 5
+        if keys[pygame.K_UP] or keys[pygame.K_w]:
+            self.camera_y += 5
+        if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+            self.camera_y -= 5
         
-        elif mouse_pressed[2]:  # Right click - remove organisms
-            mouse_x, mouse_y = mouse_pos
-            grid_x = mouse_x // self.pixel_size
-            grid_y = mouse_y // self.pixel_size
-            
-            if 0 <= grid_x < GRID_WIDTH and 0 <= grid_y < GRID_HEIGHT:
-                self.grid[grid_y][grid_x] = None
-    
-    def cycle_view_mode(self):
-        """Cycle view mode"""
-        self.view_mode = (self.view_mode + 1) % len(self.view_modes)
-    
-    def toggle_running(self):
-        """Toggle simulation"""
-        self.running = not self.running
-    
-    def step_once(self):
-        """Step simulation once"""
-        old_running = self.running
-        self.running = True
-        self.last_update = 0
-        self.update_generation()
-        self.running = old_running
+        # Handle events
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    self.paused = not self.paused
+                elif event.key == pygame.K_v:
+                    self.view_mode = (self.view_mode + 1) % len(self.view_mode_names)
+                elif event.key == pygame.K_h:
+                    self.show_hud = not self.show_hud
+                elif event.key == pygame.K_n:
+                    self.show_names = not self.show_names
+                elif event.key == pygame.K_c:
+                    self.enter_character_creation_mode()
+                elif event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
+                    self.speed = min(10, self.speed + 1)
+                elif event.key == pygame.K_MINUS:
+                    self.speed = max(1, self.speed - 1)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:  # Left click
+                    self.handle_mouse_click(event.pos)
 
 def toggle_fullscreen():
-    """Toggle fullscreen mode"""
+    """Toggle fullscreen mode using F8"""
     global screen, fullscreen
     
     if fullscreen:
         screen = pygame.display.set_mode((WIDTH, HEIGHT))
         fullscreen = False
     else:
-        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
         fullscreen = True
 
 def return_to_launcher():
     """Return to the main launcher"""
-    pygame.quit()
     try:
         subprocess.run([sys.executable, "run_art.py"], check=True)
-    except Exception as e:
-        print(f"Could not return to launcher: {e}")
-    finally:
-        sys.exit(0)
+    except subprocess.CalledProcessError:
+        print("Could not launch main menu")
+    pygame.quit()
+    sys.exit()
 
 def main():
-    ecosystem = AdvancedEcosystemSimulator()
-    running = True
-    show_stats = True
+    """Main game loop"""
+    global screen
     
+    # Initialize game
+    game = CivilizationSimulator()
+    
+    # Main game loop
+    running = True
     while running:
-        mouse_pos = pygame.mouse.get_pos()
-        mouse_pressed = pygame.mouse.get_pressed()
-        keys = pygame.key.get_pressed()
-        
-        for event in pygame.event.get():
+        # Handle events
+        events = pygame.event.get()
+        for event in events:
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    return_to_launcher()
-                elif event.key == pygame.K_F11:
+                if event.key == pygame.K_F8:
                     toggle_fullscreen()
-                elif event.key == pygame.K_SPACE:
-                    ecosystem.toggle_running()
-                elif event.key == pygame.K_s:
-                    ecosystem.step_once()
-                elif event.key == pygame.K_r:
-                    ecosystem.initialize_ecosystem()
-                elif event.key == pygame.K_c:
-                    ecosystem.clear_ecosystem()
-                elif event.key == pygame.K_v:
-                    ecosystem.cycle_view_mode()
-                elif event.key == pygame.K_g:
-                    ecosystem.show_grid = not ecosystem.show_grid
-                elif event.key == pygame.K_i:
-                    ecosystem.initialize_ecosystem()
-                elif event.key == pygame.K_d:
-                    ecosystem.environment.drought = not ecosystem.environment.drought
-                elif event.key == pygame.K_f:
-                    ecosystem.environment.flood = not ecosystem.environment.flood
-                elif event.key == pygame.K_t:
-                    ecosystem.environment.ice_age = not ecosystem.environment.ice_age
-                elif event.key == pygame.K_y:
-                    ecosystem.environment.volcanic_activity = not ecosystem.environment.volcanic_activity
-                elif event.key == pygame.K_h:
-                    show_stats = not show_stats
-                elif event.key == pygame.K_UP:
-                    ecosystem.speed = min(ecosystem.speed + 1, 30)
-                elif event.key == pygame.K_DOWN:
-                    ecosystem.speed = max(ecosystem.speed - 1, 1)
+                elif event.key == pygame.K_ESCAPE:
+                    return_to_launcher()
         
-        # Handle mouse input
-        ecosystem.handle_mouse_input(mouse_pos, mouse_pressed)
+        # Handle input
+        keys = pygame.key.get_pressed()
+        game.handle_input(keys, events)
         
-        # Update ecosystem
-        ecosystem.update_generation()
+        # Update simulation
+        game.update_simulation()
         
-        # Draw everything
+        # Clear screen
         screen.fill(CYBER_BLACK)
         
-        # Draw ecosystem
-        ecosystem.draw_grid(screen)
+        # Draw everything
+        game.draw_world(screen)
+        game.draw_hud(screen)
+        game.draw_character_info(screen)
+        game.draw_settlement_info(screen)
+        game.draw_controls(screen)
         
-        # Draw environmental effects
-        ecosystem.draw_environmental_effects(screen)
-        
-        # Draw statistics if enabled
-        if show_stats:
-            # Semi-transparent background
-            stats_surface = pygame.Surface((200, 300))
-            stats_surface.set_alpha(220)
-            stats_surface.fill(CYBER_BLACK)
-            screen.blit(stats_surface, (0, 0))
-            
-            ecosystem.draw_statistics(screen)
-            ecosystem.draw_controls(screen)
-        
-        # Draw status
-        status_font = pygame.font.Font(None, 20)
-        status_text = f"{'RUNNING' if ecosystem.running else 'PAUSED'} | {ecosystem.view_modes[ecosystem.view_mode]} | SPEED: {ecosystem.speed}"
-        status_color = LIFE_GREEN if ecosystem.running else NEON_YELLOW
-        text_surface = status_font.render(status_text, True, status_color)
-        screen.blit(text_surface, (WIDTH - 350, HEIGHT - 25))
-        
+        # Update display
         pygame.display.flip()
-        clock.tick(60)
+        clock.tick(60)  # 60 FPS for smooth experience
     
     pygame.quit()
+    sys.exit()
 
 if __name__ == "__main__":
     main() 

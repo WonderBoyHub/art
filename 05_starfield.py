@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Advanced Starfield Warp Drive Simulator - Complete space navigation simulation
-Perfect for Raspberry Pi 5 with 3.5" display
-ENHANCED WARP DRIVE SIMULATOR VERSION
+Advanced Space Exploration Simulator - No Man's Sky/Star Citizen style game
+Perfect for Raspberry Pi 5 with 3.5" display (480x320)
+COMPLETE SPACE EXPLORATION WITH PLANETS, TRADING, ALIENS, AND SHIP UPGRADES
 """
 
 import pygame
@@ -11,24 +11,26 @@ import math
 import time
 import sys
 import subprocess
+import json
+from enum import Enum
+from dataclasses import dataclass
+from typing import List, Dict, Optional, Tuple, Any
 
 # Initialize Pygame
 pygame.init()
 
-# Screen dimensions
+# Screen dimensions optimized for Pi 5
 WIDTH = 480
 HEIGHT = 320
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Advanced Warp Drive Simulator")
+pygame.display.set_caption("Advanced Space Exploration Simulator")
 
 # Fullscreen support
 fullscreen = False
-original_screen = screen
-
 clock = pygame.time.Clock()
 start_time = time.time()
 
-# Enhanced colors
+# Enhanced cyberpunk color palette
 CYBER_BLACK = (10, 10, 15)
 NEON_BLUE = (50, 150, 255)
 NEON_GREEN = (50, 255, 150)
@@ -37,814 +39,1050 @@ NEON_YELLOW = (255, 255, 50)
 NEON_RED = (255, 50, 50)
 NEON_PURPLE = (150, 50, 255)
 NEON_ORANGE = (255, 150, 50)
-WARP_BLUE = (100, 200, 255)
-QUANTUM_PURPLE = (200, 100, 255)
-DANGER_RED = (255, 100, 100)
+SPACE_COLORS = {
+    'deep_space': (5, 5, 20),
+    'nebula': (100, 50, 200),
+    'star_yellow': (255, 255, 150),
+    'star_blue': (150, 200, 255),
+    'star_red': (255, 150, 150),
+    'planet_earth': (100, 150, 255),
+    'planet_desert': (200, 150, 100),
+    'planet_ice': (200, 230, 255),
+    'planet_lava': (255, 100, 50),
+    'planet_forest': (100, 200, 100),
+    'planet_toxic': (150, 255, 50),
+    'asteroid': (150, 120, 100),
+    'ship_hull': (120, 120, 150),
+    'alien_green': (100, 255, 100),
+    'alien_purple': (200, 100, 255),
+    'alien_orange': (255, 150, 50)
+}
 
-class QuantumParticle:
-    def __init__(self):
-        self.x = random.uniform(-2, 2)
-        self.y = random.uniform(-2, 2)
-        self.z = random.uniform(0.1, 1)
-        self.quantum_phase = random.uniform(0, 2 * math.pi)
-        self.energy = random.uniform(0.5, 1.0)
-        self.color_shift = random.uniform(0, 360)
-        
-    def update(self, quantum_field_strength):
-        # Quantum tunneling effect
-        tunnel_chance = quantum_field_strength * 0.01
-        if random.random() < tunnel_chance:
-            self.x += random.uniform(-0.5, 0.5)
-            self.y += random.uniform(-0.5, 0.5)
-            
-        # Quantum phase evolution
-        self.quantum_phase += quantum_field_strength * 0.1
-        self.energy *= 0.99  # Quantum decay
-        
-        # Recharge if energy too low
-        if self.energy < 0.1:
-            self.energy = random.uniform(0.5, 1.0)
-            
-    def draw(self, surface, center_x, center_y):
-        if self.z > 0:
-            screen_x = self.x / self.z * WIDTH/4 + center_x
-            screen_y = self.y / self.z * HEIGHT/4 + center_y
-            
-            if 0 <= screen_x < WIDTH and 0 <= screen_y < HEIGHT:
-                # Quantum glow effect
-                intensity = int(self.energy * 255)
-                phase_color = (
-                    max(0, min(255, int(intensity * abs(math.sin(self.quantum_phase))))),
-                    max(0, min(255, int(intensity * abs(math.sin(self.quantum_phase + 2.1))))),
-                    max(0, min(255, int(intensity * abs(math.sin(self.quantum_phase + 4.2)))))
-                )
-                
-                size = max(1, int(self.energy * 3))
-                pygame.draw.circle(surface, phase_color, (int(screen_x), int(screen_y)), size)
+class GameState(Enum):
+    SPACE_FLIGHT = 0
+    PLANET_SURFACE = 1
+    STATION_DOCKED = 2
+    TRADING = 3
+    SHIP_UPGRADE = 4
+    ALIEN_ENCOUNTER = 5
+    GALAXY_MAP = 6
 
-class Star:
-    def __init__(self, center_x=0, center_y=0):
-        self.x = random.uniform(-1, 1)
-        self.y = random.uniform(-1, 1)
-        self.z = random.uniform(0.1, 1)
-        self.prev_x = None
-        self.prev_y = None
-        self.center_x = center_x
-        self.center_y = center_y
-        self.color_hue = random.randint(0, 360)
-        self.twinkle_phase = random.uniform(0, 2 * math.pi)
-        self.stellar_type = random.choice(['main', 'giant', 'dwarf', 'neutron', 'pulsar'])
-        self.luminosity = random.uniform(0.3, 1.0)
-        
-    def update(self, speed, direction_x=0, direction_y=0, warp_distortion=0):
-        self.prev_x = self.get_screen_x()
-        self.prev_y = self.get_screen_y()
-        
-        # Warp distortion effects
-        if warp_distortion > 0:
-            distortion_x = math.sin(time.time() * 2 + self.x * 10) * warp_distortion * 0.1
-            distortion_y = math.cos(time.time() * 2 + self.y * 10) * warp_distortion * 0.1
-            self.x += distortion_x
-            self.y += distortion_y
-        
-        self.z -= speed
-        
-        # Add directional movement
-        self.x += direction_x * speed * 10
-        self.y += direction_y * speed * 10
-        
-        # Reset star if it goes behind viewer or too far away
-        if self.z <= 0 or abs(self.x) > 2 or abs(self.y) > 2:
-            self.x = random.uniform(-1, 1)
-            self.y = random.uniform(-1, 1)
-            self.z = 1
-            self.prev_x = None
-            self.prev_y = None
-            self.color_hue = random.randint(0, 360)
-            self.twinkle_phase = random.uniform(0, 2 * math.pi)
-            self.stellar_type = random.choice(['main', 'giant', 'dwarf', 'neutron', 'pulsar'])
-            self.luminosity = random.uniform(0.3, 1.0)
-    
-    def get_screen_x(self):
-        return (self.x + self.center_x) / self.z * WIDTH/2 + WIDTH/2
-    
-    def get_screen_y(self):
-        return (self.y + self.center_y) / self.z * HEIGHT/2 + HEIGHT/2
-    
-    def draw(self, surface, color_mode=0, pixel_size=1, twinkle=False, time_val=0):
-        if self.z > 0:
-            screen_x = self.get_screen_x()
-            screen_y = self.get_screen_y()
-            
-            # Check if star is on screen
-            if 0 <= screen_x < WIDTH and 0 <= screen_y < HEIGHT:
-                # Calculate star size based on distance and stellar type
-                base_size = max(1, int((1 - self.z) * 4))
-                if self.stellar_type == 'giant':
-                    base_size *= 2
-                elif self.stellar_type == 'neutron':
-                    base_size = max(1, base_size // 2)
-                elif self.stellar_type == 'pulsar':
-                    base_size = max(1, int(base_size * (1 + 0.5 * math.sin(time_val * 10))))
-                
-                size = base_size * pixel_size
-                
-                # Calculate brightness based on distance and luminosity
-                base_brightness = int(255 * (1 - self.z) * self.luminosity)
-                
-                # Apply twinkle effect
-                if twinkle:
-                    twinkle_factor = 0.7 + 0.3 * math.sin(time_val * 5 + self.twinkle_phase)
-                    brightness = int(base_brightness * twinkle_factor)
-                else:
-                    brightness = base_brightness
-                
-                # Get color based on mode and stellar type
-                color = self.get_color(color_mode, brightness, time_val)
-                
-                # Draw star as pixel art
-                if pixel_size > 1:
-                    pygame.draw.rect(surface, color, 
-                                   (int(screen_x), int(screen_y), size, size))
-                else:
-                    pygame.draw.circle(surface, color, 
-                                     (int(screen_x), int(screen_y)), size)
-                
-                # Draw trail for warp effect
-                if self.prev_x is not None and self.prev_y is not None:
-                    if 0 <= self.prev_x < WIDTH and 0 <= self.prev_y < HEIGHT:
-                        trail_color = tuple(max(0, min(255, c//3)) for c in color)
-                        pygame.draw.line(surface, trail_color, 
-                                       (int(self.prev_x), int(self.prev_y)), 
-                                       (int(screen_x), int(screen_y)), 
-                                       max(1, pixel_size))
-    
-    def get_color(self, color_mode, brightness, time_val):
-        """Get star color based on mode and stellar type"""
-        if self.stellar_type == 'neutron':
-            return (brightness, brightness, max(0, min(255, brightness + 50)))
-        elif self.stellar_type == 'pulsar':
-            pulse = abs(math.sin(time_val * 10))
-            return (max(0, min(255, int(brightness * pulse))), 
-                    max(0, min(255, int(brightness * pulse * 0.5))), 
-                    max(0, min(255, brightness)))
-        elif self.stellar_type == 'giant':
-            return (brightness, max(0, min(255, brightness//2)), max(0, min(255, brightness//4)))
-        elif self.stellar_type == 'dwarf':
-            return (max(0, min(255, brightness//2)), max(0, min(255, brightness//2)), brightness)
-        
-        # Normal stellar colors based on mode
-        if color_mode == 0:  # White stars
-            return (brightness, brightness, brightness)
-        elif color_mode == 1:  # Colored stars
-            # Convert HSV to RGB
-            h = self.color_hue / 360.0
-            s = 0.7
-            v = brightness / 255.0
-            
-            c = v * s
-            x = c * (1 - abs((h * 6) % 2 - 1))
-            m = v - c
-            
-            if h < 1/6:
-                r, g, b = c, x, 0
-            elif h < 2/6:
-                r, g, b = x, c, 0
-            elif h < 3/6:
-                r, g, b = 0, c, x
-            elif h < 4/6:
-                r, g, b = 0, x, c
-            elif h < 5/6:
-                r, g, b = x, 0, c
-            else:
-                r, g, b = c, 0, x
-            
-            return (max(0, min(255, int((r + m) * 255))), 
-                    max(0, min(255, int((g + m) * 255))), 
-                    max(0, min(255, int((b + m) * 255))))
-        elif color_mode == 2:  # Blue nebula
-            return (max(0, min(255, brightness//4)), max(0, min(255, brightness//2)), brightness)
-        elif color_mode == 3:  # Red giant
-            return (brightness, max(0, min(255, brightness//4)), max(0, min(255, brightness//8)))
-        elif color_mode == 4:  # Green space
-            return (max(0, min(255, brightness//8)), brightness, max(0, min(255, brightness//4)))
-        else:  # Purple void
-            return (max(0, min(255, brightness//2)), max(0, min(255, brightness//8)), brightness)
+class PlanetType(Enum):
+    EARTH_LIKE = 0
+    DESERT = 1
+    ICE = 2
+    LAVA = 3
+    FOREST = 4
+    TOXIC = 5
+    OCEAN = 6
+    BARREN = 7
 
-class AdvancedWarpDrive:
-    def __init__(self):
-        self.stars = []
-        self.quantum_particles = []
-        self.star_count = 200
-        self.speed = 0.01
-        self.direction_x = 0
-        self.direction_y = 0
-        self.color_mode = 0
-        self.pixel_size = 1
-        self.twinkle = False
-        self.warp_mode = 0  # 0: Normal, 1: Quantum, 2: Hyperspace, 3: Wormhole, 4: Emergency
-        self.show_trails = True
-        self.show_hud = True
-        
-        # Advanced systems
-        self.fuel_level = 100.0
-        self.energy_level = 100.0
-        self.quantum_field_strength = 0.0
+class ResourceType(Enum):
+    CARBON = 0
+    IRON = 1
+    PLATINUM = 2
+    QUANTUM_CRYSTAL = 3
+    EXOTIC_MATTER = 4
+    FUEL = 5
+    CREDITS = 6
+
+class AlienRace(Enum):
+    HUMANOID = 0
+    INSECTOID = 1
+    CRYSTALLINE = 2
+    ENERGY_BEING = 3
+    MECHANICAL = 4
+
+@dataclass
+class Ship:
+    """Player's spaceship with upgrades and customization"""
+    name: str
+    ship_class: str  # Fighter, Explorer, Trader, Freighter
+    hull_integrity: float
+    max_hull: float
+    shields: float
+    max_shields: float
+    fuel: float
+    max_fuel: float
+    cargo_capacity: int
+    cargo: Dict[ResourceType, int]
+    
+    # Ship systems
+    engine_power: float
+    weapon_power: float
+    scanner_range: float
+    hyperdrive_class: int
+    life_support: float
+    
+    # Upgrades
+    upgrades: Dict[str, int]
+    
+    def __init__(self, name: str = "Explorer"):
+        self.name = name
+        self.ship_class = "Explorer"
         self.hull_integrity = 100.0
-        self.navigation_computer = True
-        self.emergency_mode = False
-        self.auto_pilot = False
-        self.warp_core_temp = 0.0
+        self.max_hull = 100.0
+        self.shields = 100.0
+        self.max_shields = 100.0
+        self.fuel = 100.0
+        self.max_fuel = 100.0
+        self.cargo_capacity = 50
+        self.cargo = {resource: 0 for resource in ResourceType}
         
-        # Galactic coordinates
-        self.galactic_x = 0.0
-        self.galactic_y = 0.0
-        self.galactic_z = 0.0
-        self.sector = "Alpha"
-        self.quadrant = "001"
+        # Basic systems
+        self.engine_power = 1.0
+        self.weapon_power = 1.0
+        self.scanner_range = 100.0
+        self.hyperdrive_class = 1
+        self.life_support = 100.0
         
-        # Hazards and events
-        self.solar_storm = False
-        self.asteroid_field = False
-        self.quantum_anomaly = False
-        self.time_distortion = False
-        
-        self.color_mode_names = {
-            0: "STELLAR.STANDARD",
-            1: "SPECTRAL.ANALYSIS", 
-            2: "NEBULA.FILTER",
-            3: "RED.GIANT.MODE",
-            4: "QUANTUM.SPACE",
-            5: "VOID.DETECTION"
+        # No upgrades initially
+        self.upgrades = {
+            'engine': 0,
+            'weapons': 0,
+            'shields': 0,
+            'hyperdrive': 0,
+            'scanner': 0,
+            'cargo': 0
         }
+    
+    def get_cargo_used(self) -> int:
+        """Get total cargo space used"""
+        return sum(self.cargo.values())
+    
+    def can_add_cargo(self, resource: ResourceType, amount: int) -> bool:
+        """Check if cargo can be added"""
+        return self.get_cargo_used() + amount <= self.cargo_capacity
+    
+    def add_cargo(self, resource: ResourceType, amount: int) -> bool:
+        """Add cargo if space available"""
+        if self.can_add_cargo(resource, amount):
+            self.cargo[resource] += amount
+            return True
+        return False
+    
+    def remove_cargo(self, resource: ResourceType, amount: int) -> bool:
+        """Remove cargo if available"""
+        if self.cargo[resource] >= amount:
+            self.cargo[resource] -= amount
+            return True
+        return False
+    
+    def apply_upgrade(self, upgrade_type: str):
+        """Apply ship upgrade"""
+        if upgrade_type in self.upgrades:
+            self.upgrades[upgrade_type] += 1
+            
+            # Apply upgrade effects
+            if upgrade_type == 'engine':
+                self.engine_power += 0.2
+            elif upgrade_type == 'weapons':
+                self.weapon_power += 0.3
+            elif upgrade_type == 'shields':
+                self.max_shields += 20
+                self.shields = self.max_shields
+            elif upgrade_type == 'hyperdrive':
+                self.hyperdrive_class += 1
+            elif upgrade_type == 'scanner':
+                self.scanner_range += 50
+            elif upgrade_type == 'cargo':
+                self.cargo_capacity += 10
+    
+    def repair_hull(self, amount: float):
+        """Repair hull damage"""
+        self.hull_integrity = min(self.max_hull, self.hull_integrity + amount)
+    
+    def recharge_shields(self, amount: float):
+        """Recharge shields"""
+        self.shields = min(self.max_shields, self.shields + amount)
+    
+    def refuel(self, amount: float):
+        """Refuel ship"""
+        self.fuel = min(self.max_fuel, self.fuel + amount)
+
+@dataclass
+class Planet:
+    """Planet with resources and surface exploration"""
+    name: str
+    planet_type: PlanetType
+    size: float
+    temperature: float
+    atmosphere: str
+    gravity: float
+    resources: Dict[ResourceType, int]
+    hazards: List[str]
+    life_forms: List[str]
+    points_of_interest: List[Dict[str, Any]]
+    
+    def __init__(self, name: str = "Unknown"):
+        self.name = name
+        self.planet_type = random.choice(list(PlanetType))
+        self.size = random.uniform(0.5, 2.0)
+        self.temperature = random.uniform(-100, 500)
+        self.atmosphere = random.choice(['None', 'Thin', 'Dense', 'Toxic', 'Corrosive'])
+        self.gravity = random.uniform(0.1, 3.0)
+        self.resources = {}
+        self.hazards = []
+        self.life_forms = []
+        self.points_of_interest = []
         
-        self.warp_mode_names = {
-            0: "IMPULSE.DRIVE",
-            1: "QUANTUM.DRIVE",
-            2: "HYPERSPACE.JUMP",
-            3: "WORMHOLE.TRANSIT",
-            4: "EMERGENCY.POWER"
+        self.generate_planet_data()
+    
+    def generate_planet_data(self):
+        """Generate planet-specific data"""
+        # Resource distribution based on planet type
+        if self.planet_type == PlanetType.EARTH_LIKE:
+            self.resources = {
+                ResourceType.CARBON: random.randint(50, 200),
+                ResourceType.IRON: random.randint(30, 150),
+                ResourceType.FUEL: random.randint(20, 100)
+            }
+            self.life_forms = ['Flora', 'Fauna', 'Microbes']
+            self.hazards = ['Storms', 'Predators'] if random.random() < 0.3 else []
+        elif self.planet_type == PlanetType.DESERT:
+            self.resources = {
+                ResourceType.IRON: random.randint(100, 300),
+                ResourceType.PLATINUM: random.randint(10, 50)
+            }
+            self.hazards = ['Heat', 'Sandstorms']
+        elif self.planet_type == PlanetType.ICE:
+            self.resources = {
+                ResourceType.FUEL: random.randint(50, 200),
+                ResourceType.QUANTUM_CRYSTAL: random.randint(5, 30)
+            }
+            self.hazards = ['Extreme Cold', 'Ice Storms']
+        elif self.planet_type == PlanetType.LAVA:
+            self.resources = {
+                ResourceType.IRON: random.randint(200, 500),
+                ResourceType.EXOTIC_MATTER: random.randint(10, 40)
+            }
+            self.hazards = ['Lava', 'Extreme Heat', 'Volcanic Activity']
+        elif self.planet_type == PlanetType.FOREST:
+            self.resources = {
+                ResourceType.CARBON: random.randint(100, 400),
+                ResourceType.FUEL: random.randint(30, 150)
+            }
+            self.life_forms = ['Dense Flora', 'Complex Fauna']
+            self.hazards = ['Hostile Wildlife'] if random.random() < 0.4 else []
+        elif self.planet_type == PlanetType.TOXIC:
+            self.resources = {
+                ResourceType.EXOTIC_MATTER: random.randint(20, 100),
+                ResourceType.QUANTUM_CRYSTAL: random.randint(15, 60)
+            }
+            self.hazards = ['Toxic Atmosphere', 'Acid Rain', 'Toxic Life Forms']
+        
+        # Generate points of interest
+        for _ in range(random.randint(1, 5)):
+            poi = {
+                'type': random.choice(['Ruins', 'Cave System', 'Resource Deposit', 'Alien Structure', 'Crash Site']),
+                'x': random.randint(0, 400),
+                'y': random.randint(0, 300),
+                'resources': random.randint(10, 100),
+                'danger_level': random.randint(1, 5)
+            }
+            self.points_of_interest.append(poi)
+    
+    def get_color(self) -> Tuple[int, int, int]:
+        """Get planet color based on type"""
+        color_map = {
+            PlanetType.EARTH_LIKE: SPACE_COLORS['planet_earth'],
+            PlanetType.DESERT: SPACE_COLORS['planet_desert'],
+            PlanetType.ICE: SPACE_COLORS['planet_ice'],
+            PlanetType.LAVA: SPACE_COLORS['planet_lava'],
+            PlanetType.FOREST: SPACE_COLORS['planet_forest'],
+            PlanetType.TOXIC: SPACE_COLORS['planet_toxic'],
+            PlanetType.OCEAN: SPACE_COLORS['planet_earth'],
+            PlanetType.BARREN: (100, 100, 100)
         }
-        
-        self.initialize_systems()
+        return color_map.get(self.planet_type, (150, 150, 150))
     
-    def initialize_systems(self):
-        """Initialize all ship systems"""
-        self.stars = [Star() for _ in range(self.star_count)]
-        self.quantum_particles = [QuantumParticle() for _ in range(50)]
-        
-    def update_systems(self, time_val):
-        """Update all ship systems"""
-        # Fuel consumption based on speed and warp mode
-        base_consumption = self.speed * 0.1
-        if self.warp_mode == 1:  # Quantum drive
-            base_consumption *= 1.5
-        elif self.warp_mode == 2:  # Hyperspace
-            base_consumption *= 2.0
-        elif self.warp_mode == 3:  # Wormhole
-            base_consumption *= 3.0
-        elif self.warp_mode == 4:  # Emergency
-            base_consumption *= 0.5
-            
-        self.fuel_level = max(0, self.fuel_level - base_consumption)
-        
-        # Energy consumption for navigation and systems
-        energy_consumption = 0.02
-        if self.navigation_computer:
-            energy_consumption += 0.01
-        if abs(self.direction_x) > 0 or abs(self.direction_y) > 0:
-            energy_consumption += 0.03
-            
-        self.energy_level = max(0, self.energy_level - energy_consumption)
-        
-        # Warp core temperature
-        target_temp = self.speed * 100
-        if self.warp_mode >= 2:
-            target_temp *= 1.5
-        self.warp_core_temp += (target_temp - self.warp_core_temp) * 0.1
-        
-        # Hull integrity degradation in hazardous conditions
-        if self.solar_storm or self.asteroid_field or self.quantum_anomaly:
-            self.hull_integrity = max(0, self.hull_integrity - 0.1)
-        else:
-            self.hull_integrity = min(100, self.hull_integrity + 0.05)
-        
-        # Update galactic coordinates
-        self.galactic_x += self.direction_x * self.speed * 1000
-        self.galactic_y += self.direction_y * self.speed * 1000
-        self.galactic_z += self.speed * 1000
-        
-        # Update sector and quadrant
-        sector_num = int(abs(self.galactic_x) // 10000) % 26
-        self.sector = chr(ord('A') + sector_num)
-        self.quadrant = f"{int(abs(self.galactic_y) // 5000) % 1000:03d}"
-        
-        # Random hazard generation
-        if random.random() < 0.001:  # 0.1% chance per frame
-            self.generate_hazard()
-        
-        # Clear hazards randomly
-        if random.random() < 0.01:  # 1% chance per frame
-            self.clear_hazards()
-        
-        # Emergency mode activation
-        if self.fuel_level < 10 or self.energy_level < 10 or self.hull_integrity < 20:
-            self.emergency_mode = True
-            self.warp_mode = 4  # Emergency power
-        else:
-            self.emergency_mode = False
-        
-        # Quantum field strength for quantum drive
-        if self.warp_mode == 1:
-            self.quantum_field_strength = min(self.quantum_field_strength + 0.1, 1.0)
-        else:
-            self.quantum_field_strength = max(self.quantum_field_strength - 0.05, 0.0)
-            
-    def generate_hazard(self):
-        """Generate random space hazards"""
-        hazard_type = random.choice(['solar_storm', 'asteroid_field', 'quantum_anomaly', 'time_distortion'])
-        if hazard_type == 'solar_storm':
-            self.solar_storm = True
-        elif hazard_type == 'asteroid_field':
-            self.asteroid_field = True
-        elif hazard_type == 'quantum_anomaly':
-            self.quantum_anomaly = True
-        elif hazard_type == 'time_distortion':
-            self.time_distortion = True
-            
-    def clear_hazards(self):
-        """Clear random hazards"""
-        self.solar_storm = False
-        self.asteroid_field = False
-        self.quantum_anomaly = False
-        self.time_distortion = False
-        
-    def update_stars(self, time_val):
-        """Update all stars based on warp mode"""
-        warp_distortion = 0
-        
-        for star in self.stars:
-            if self.warp_mode == 0:  # Normal impulse
-                star.update(self.speed, self.direction_x, self.direction_y)
-            elif self.warp_mode == 1:  # Quantum drive
-                warp_distortion = self.quantum_field_strength
-                star.update(self.speed * 1.5, self.direction_x, self.direction_y, warp_distortion)
-            elif self.warp_mode == 2:  # Hyperspace
-                hyper_time = time_val * 2
-                hyper_x = math.cos(hyper_time) * 0.1
-                hyper_y = math.sin(hyper_time) * 0.1
-                star.update(self.speed * 2, hyper_x, hyper_y)
-            elif self.warp_mode == 3:  # Wormhole
-                wormhole_time = time_val * 3
-                wormhole_x = math.cos(wormhole_time) * 0.2
-                wormhole_y = math.sin(wormhole_time) * 0.2
-                star.update(self.speed * 3, wormhole_x, wormhole_y, 0.5)
-            else:  # Emergency power
-                star.update(self.speed * 0.5, self.direction_x * 0.5, self.direction_y * 0.5)
-        
-        # Update quantum particles
-        for particle in self.quantum_particles:
-            particle.update(self.quantum_field_strength)
+    def is_habitable(self) -> bool:
+        """Check if planet is habitable"""
+        return (self.planet_type in [PlanetType.EARTH_LIKE, PlanetType.FOREST] and
+                -20 <= self.temperature <= 50 and
+                self.atmosphere in ['Thin', 'Dense'] and
+                0.5 <= self.gravity <= 2.0)
+
+@dataclass
+class AlienSpecies:
+    """Alien species with unique characteristics"""
+    name: str
+    race: AlienRace
+    disposition: str  # Friendly, Neutral, Hostile, Mysterious
+    technology_level: int
+    trade_goods: List[ResourceType]
+    preferred_resources: List[ResourceType]
+    territory: List[str]  # System names they control
     
-    def draw_stars(self, surface, time_val):
-        """Draw all stars"""
-        for star in self.stars:
-            star.draw(surface, self.color_mode, self.pixel_size, self.twinkle, time_val)
+    def __init__(self, name: str):
+        self.name = name
+        self.race = random.choice(list(AlienRace))
+        self.disposition = random.choice(['Friendly', 'Neutral', 'Hostile', 'Mysterious'])
+        self.technology_level = random.randint(1, 10)
+        self.trade_goods = random.sample(list(ResourceType), random.randint(2, 4))
+        self.preferred_resources = random.sample(list(ResourceType), random.randint(1, 3))
+        self.territory = []
     
-    def draw_quantum_field(self, surface):
-        """Draw quantum field effects"""
-        if self.quantum_field_strength > 0:
-            for particle in self.quantum_particles:
-                particle.draw(surface, WIDTH//2, HEIGHT//2)
+    def get_color(self) -> Tuple[int, int, int]:
+        """Get alien species color"""
+        if self.race == AlienRace.HUMANOID:
+            return SPACE_COLORS['alien_green']
+        elif self.race == AlienRace.INSECTOID:
+            return SPACE_COLORS['alien_orange']
+        elif self.race == AlienRace.CRYSTALLINE:
+            return SPACE_COLORS['alien_purple']
+        elif self.race == AlienRace.ENERGY_BEING:
+            return NEON_CYAN
+        else:  # MECHANICAL
+            return (150, 150, 150)
     
-    def draw_warp_tunnel(self, surface, time_val):
-        """Draw warp tunnel effects"""
-        if self.warp_mode >= 2:
-            center_x, center_y = WIDTH//2, HEIGHT//2
-            tunnel_rings = 8
-            
-            for i in range(tunnel_rings):
-                progress = (time_val * 2 + i * 0.5) % 4
-                radius = int(20 + progress * 50)
-                
-                if radius < 200:
-                    alpha = int(255 * (1 - progress / 4))
-                    if self.warp_mode == 2:  # Hyperspace
-                        color = (alpha, alpha//2, alpha)
-                    else:  # Wormhole
-                        color = (alpha//2, alpha, alpha)
-                    
-                    pygame.draw.circle(surface, color, (center_x, center_y), radius, 2)
+    def get_trade_modifier(self) -> float:
+        """Get trade price modifier"""
+        if self.disposition == 'Friendly':
+            return 0.8  # 20% discount
+        elif self.disposition == 'Hostile':
+            return 1.5  # 50% markup
+        elif self.disposition == 'Mysterious':
+            return random.uniform(0.5, 2.0)  # Random pricing
+        else:  # Neutral
+            return 1.0
+
+@dataclass
+class StarSystem:
+    """Star system with planets and stations"""
+    name: str
+    star_type: str
+    star_color: Tuple[int, int, int]
+    x: float
+    y: float
+    planets: List[Planet]
+    space_stations: List[Dict[str, Any]]
+    alien_presence: Optional[AlienSpecies]
+    asteroid_fields: List[Dict[str, Any]]
     
-    def draw_hazard_effects(self, surface, time_val):
-        """Draw hazard visual effects"""
-        if self.solar_storm:
-            # Solar storm effect
-            for i in range(20):
-                x = random.randint(0, WIDTH)
-                y = random.randint(0, HEIGHT)
-                intensity = int(100 + 155 * abs(math.sin(time_val * 8 + i)))
-                color = (intensity, intensity//2, 0)
-                pygame.draw.circle(surface, color, (x, y), 2)
+    def __init__(self, name: str, x: float, y: float):
+        self.name = name
+        self.star_type = random.choice(['G-class', 'K-class', 'M-class', 'F-class', 'A-class'])
+        self.x = x
+        self.y = y
+        self.planets = []
+        self.space_stations = []
+        self.alien_presence = None
+        self.asteroid_fields = []
         
-        if self.asteroid_field:
-            # Asteroid field effect
-            for i in range(15):
-                x = random.randint(0, WIDTH)
-                y = random.randint(0, HEIGHT)
-                size = random.randint(2, 6)
-                color = (100, 80, 60)
-                pygame.draw.circle(surface, color, (x, y), size)
+        # Star color based on type
+        star_colors = {
+            'G-class': SPACE_COLORS['star_yellow'],
+            'K-class': SPACE_COLORS['star_red'],
+            'M-class': (255, 100, 100),
+            'F-class': (255, 255, 200),
+            'A-class': SPACE_COLORS['star_blue']
+        }
+        self.star_color = star_colors.get(self.star_type, SPACE_COLORS['star_yellow'])
         
-        if self.quantum_anomaly:
-            # Quantum anomaly effect
-            center_x, center_y = WIDTH//2, HEIGHT//2
-            anomaly_radius = int(50 + 30 * math.sin(time_val * 4))
-            colors = [(255, 0, 255), (0, 255, 255), (255, 255, 0)]
-            
-            for i, color in enumerate(colors):
-                offset_angle = time_val * 2 + i * 2.1
-                offset_x = int(center_x + math.cos(offset_angle) * 20)
-                offset_y = int(center_y + math.sin(offset_angle) * 20)
-                pygame.draw.circle(surface, color, (offset_x, offset_y), anomaly_radius, 3)
+        self.generate_system()
     
-    def draw_advanced_hud(self, surface):
-        """Draw advanced HUD elements"""
-        if self.show_hud:
-            # Main crosshair
-            crosshair_color = NEON_GREEN if not self.emergency_mode else DANGER_RED
-            pygame.draw.line(surface, crosshair_color, 
-                           (WIDTH//2 - 15, HEIGHT//2), 
-                           (WIDTH//2 + 15, HEIGHT//2), 2)
-            pygame.draw.line(surface, crosshair_color, 
-                           (WIDTH//2, HEIGHT//2 - 15), 
-                           (WIDTH//2, HEIGHT//2 + 15), 2)
-            
-            # Navigation compass
-            if self.direction_x != 0 or self.direction_y != 0:
-                radar_x = WIDTH - 60
-                radar_y = 60
-                pygame.draw.circle(surface, NEON_CYAN, (radar_x, radar_y), 25, 2)
-                
-                # Direction indicator
-                dir_length = 20
-                end_x = radar_x + self.direction_x * dir_length * 100
-                end_y = radar_y + self.direction_y * dir_length * 100
-                pygame.draw.line(surface, NEON_GREEN, 
-                               (radar_x, radar_y), 
-                               (int(end_x), int(end_y)), 3)
-                
-                # Compass markings
-                for angle in range(0, 360, 45):
-                    mark_x = radar_x + math.cos(math.radians(angle)) * 22
-                    mark_y = radar_y + math.sin(math.radians(angle)) * 22
-                    pygame.draw.circle(surface, NEON_CYAN, (int(mark_x), int(mark_y)), 2)
-            
-            # System status indicators
-            status_y = HEIGHT - 80
-            
-            # Fuel gauge
-            fuel_width = int(60 * (self.fuel_level / 100))
-            fuel_color = NEON_GREEN if self.fuel_level > 30 else NEON_YELLOW if self.fuel_level > 10 else DANGER_RED
-            pygame.draw.rect(surface, fuel_color, (10, status_y, fuel_width, 8))
-            pygame.draw.rect(surface, NEON_CYAN, (10, status_y, 60, 8), 1)
-            
-            # Energy gauge
-            energy_width = int(60 * (self.energy_level / 100))
-            energy_color = NEON_GREEN if self.energy_level > 30 else NEON_YELLOW if self.energy_level > 10 else DANGER_RED
-            pygame.draw.rect(surface, energy_color, (10, status_y + 12, energy_width, 8))
-            pygame.draw.rect(surface, NEON_CYAN, (10, status_y + 12, 60, 8), 1)
-            
-            # Hull integrity
-            hull_width = int(60 * (self.hull_integrity / 100))
-            hull_color = NEON_GREEN if self.hull_integrity > 50 else NEON_YELLOW if self.hull_integrity > 20 else DANGER_RED
-            pygame.draw.rect(surface, hull_color, (10, status_y + 24, hull_width, 8))
-            pygame.draw.rect(surface, NEON_CYAN, (10, status_y + 24, 60, 8), 1)
-            
-            # Warp core temperature
-            temp_width = int(60 * (self.warp_core_temp / 100))
-            temp_color = NEON_BLUE if self.warp_core_temp < 70 else NEON_YELLOW if self.warp_core_temp < 90 else DANGER_RED
-            pygame.draw.rect(surface, temp_color, (10, status_y + 36, temp_width, 8))
-            pygame.draw.rect(surface, NEON_CYAN, (10, status_y + 36, 60, 8), 1)
-            
-            # Emergency indicators
-            if self.emergency_mode:
-                warning_text = "⚠ EMERGENCY MODE ⚠"
-                font = pygame.font.Font(None, 24)
-                text_surface = font.render(warning_text, True, DANGER_RED)
-                surface.blit(text_surface, (WIDTH//2 - 80, 10))
-            
-            # Hazard warnings
-            warning_y = 40
-            if self.solar_storm:
-                font = pygame.font.Font(None, 20)
-                text = font.render("⚡ SOLAR STORM", True, NEON_YELLOW)
-                surface.blit(text, (WIDTH//2 - 50, warning_y))
-                warning_y += 20
-            
-            if self.asteroid_field:
-                font = pygame.font.Font(None, 20)
-                text = font.render("🌑 ASTEROID FIELD", True, NEON_ORANGE)
-                surface.blit(text, (WIDTH//2 - 60, warning_y))
-                warning_y += 20
-            
-            if self.quantum_anomaly:
-                font = pygame.font.Font(None, 20)
-                text = font.render("🌀 QUANTUM ANOMALY", True, QUANTUM_PURPLE)
-                surface.blit(text, (WIDTH//2 - 70, warning_y))
+    def generate_system(self):
+        """Generate system contents"""
+        # Generate planets
+        num_planets = random.randint(1, 8)
+        for i in range(num_planets):
+            planet_name = f"{self.name} {chr(ord('A') + i)}"
+            planet = Planet(planet_name)
+            self.planets.append(planet)
+        
+        # Generate space stations
+        if random.random() < 0.3:  # 30% chance of space station
+            station = {
+                'name': f"{self.name} Station",
+                'type': random.choice(['Trading Post', 'Research Station', 'Military Base', 'Refinery']),
+                'services': random.sample(['Fuel', 'Repairs', 'Trading', 'Upgrades'], random.randint(2, 4)),
+                'x': random.randint(100, 380),
+                'y': random.randint(100, 220)
+            }
+            self.space_stations.append(station)
+        
+        # Generate asteroid fields
+        if random.random() < 0.4:  # 40% chance of asteroid field
+            field = {
+                'name': f"{self.name} Asteroid Field",
+                'x': random.randint(50, 430),
+                'y': random.randint(50, 270),
+                'size': random.randint(20, 80),
+                'resources': {
+                    ResourceType.IRON: random.randint(50, 200),
+                    ResourceType.PLATINUM: random.randint(10, 50)
+                },
+                'danger_level': random.randint(1, 5)
+            }
+            self.asteroid_fields.append(field)
+        
+        # Alien presence
+        if random.random() < 0.2:  # 20% chance of alien presence
+            alien_names = ['Zorblaxians', 'Crystallites', 'Voidwalkers', 'Technomancers', 'Starhunters']
+            alien_name = random.choice(alien_names)
+            self.alien_presence = AlienSpecies(alien_name)
+            self.alien_presence.territory.append(self.name)
+
+class SpaceExplorationGame:
+    """Main game class managing all systems"""
+    def __init__(self):
+        self.game_state = GameState.SPACE_FLIGHT
+        self.player_ship = Ship("Nomad")
+        self.current_system = None
+        self.current_planet = None
+        self.galaxy_map = {}
+        self.alien_species = {}
+        self.discovered_systems = set()
+        self.visited_planets = set()
+        
+        # Player stats
+        self.player_credits = 1000
+        self.player_reputation = {}  # alien_species -> reputation
+        self.exploration_rank = 'Rookie'
+        self.combat_rank = 'Harmless'
+        self.trade_rank = 'Peddler'
+        
+        # Camera and view
+        self.camera_x = 0
+        self.camera_y = 0
+        self.zoom = 1.0
+        self.selected_object = None
+        
+        # UI state
+        self.show_hud = True
+        self.show_scanner = True
+        self.show_system_info = True
+        self.scanner_range = 200
+        
+        # Game time
+        self.game_time = 0
+        self.day_cycle = 0.0
+        
+        # Performance settings
+        self.star_density = 100
+        self.update_frequency = 60
+        
+        # Initialize galaxy
+        self.initialize_galaxy()
+        
+        # Set starting system
+        self.current_system = list(self.galaxy_map.values())[0]
+        self.player_ship.cargo[ResourceType.CREDITS] = 1000
     
-    def draw_navigation_computer(self, surface):
-        """Draw navigation computer display"""
-        if self.navigation_computer:
-            # Navigation panel
-            nav_rect = pygame.Rect(WIDTH - 150, 10, 140, 100)
-            pygame.draw.rect(surface, CYBER_BLACK, nav_rect)
-            pygame.draw.rect(surface, NEON_CYAN, nav_rect, 2)
-            
-            font = pygame.font.Font(None, 18)
-            
-            # Coordinates
-            coord_text = font.render(f"SECTOR: {self.sector}", True, NEON_GREEN)
-            surface.blit(coord_text, (WIDTH - 145, 20))
-            
-            quad_text = font.render(f"QUAD: {self.quadrant}", True, NEON_GREEN)
-            surface.blit(quad_text, (WIDTH - 145, 35))
-            
-            # Position
-            pos_text = font.render(f"X: {self.galactic_x:.1f}", True, NEON_BLUE)
-            surface.blit(pos_text, (WIDTH - 145, 55))
-            
-            pos_text = font.render(f"Y: {self.galactic_y:.1f}", True, NEON_BLUE)
-            surface.blit(pos_text, (WIDTH - 145, 70))
-            
-            pos_text = font.render(f"Z: {self.galactic_z:.1f}", True, NEON_BLUE)
-            surface.blit(pos_text, (WIDTH - 145, 85))
-    
-    def draw_system_status(self, surface):
-        """Draw detailed system status"""
-        font = pygame.font.Font(None, 16)
-        y_offset = 10
-        
-        # System labels
-        labels = ["FUEL", "ENERGY", "HULL", "CORE"]
-        values = [f"{self.fuel_level:.1f}%", f"{self.energy_level:.1f}%", 
-                 f"{self.hull_integrity:.1f}%", f"{self.warp_core_temp:.1f}°C"]
-        
-        for i, (label, value) in enumerate(zip(labels, values)):
-            color = NEON_GREEN if i < 3 else NEON_BLUE
-            if i == 0 and self.fuel_level < 20:
-                color = DANGER_RED
-            elif i == 1 and self.energy_level < 20:
-                color = DANGER_RED
-            elif i == 2 and self.hull_integrity < 30:
-                color = DANGER_RED
-            elif i == 3 and self.warp_core_temp > 80:
-                color = DANGER_RED
-            
-            text = font.render(f"{label}: {value}", True, color)
-            surface.blit(text, (85, y_offset + i * 15))
-        
-        # Current settings
-        speed_text = font.render(f"WARP: {self.speed:.3f}", True, NEON_CYAN)
-        surface.blit(speed_text, (85, y_offset + 70))
-        
-        stars_text = font.render(f"STARS: {self.star_count}", True, NEON_CYAN)
-        surface.blit(stars_text, (85, y_offset + 85))
-        
-        mode_text = font.render(f"MODE: {self.warp_mode_names[self.warp_mode]}", True, NEON_PURPLE)
-        surface.blit(mode_text, (85, y_offset + 100))
-        
-        color_text = font.render(f"SCAN: {self.color_mode_names[self.color_mode]}", True, NEON_YELLOW)
-        surface.blit(color_text, (85, y_offset + 115))
-    
-    def draw_controls_help(self, surface):
-        """Draw control instructions"""
-        font = pygame.font.Font(None, 14)
-        controls = [
-            "FLIGHT CONTROLS:",
-            "↑↓ Warp Speed", "WASD Navigation", "+/- Star Density",
-            "",
-            "SYSTEMS:",
-            "M: Warp Mode", "C: Scanner Mode", "T: Stellar Twinkle",
-            "N: Nav Computer", "H: HUD Toggle", "A: Auto Pilot",
-            "",
-            "EMERGENCY:",
-            "E: Emergency Systems", "R: Full Reset",
-            "F11: Fullscreen", "ESC: Return to Launcher"
+    def initialize_galaxy(self):
+        """Initialize the galaxy with star systems"""
+        # Create a small galaxy for Pi 5 performance
+        system_names = [
+            'Alpha Centauri', 'Proxima', 'Barnard', 'Wolf 359', 'Lalande',
+            'Sirius', 'Vega', 'Arcturus', 'Capella', 'Rigel',
+            'Betelgeuse', 'Aldebaran', 'Antares', 'Spica', 'Pollux',
+            'Fomalhaut', 'Deneb', 'Regulus', 'Adhara', 'Castor'
         ]
         
-        y_start = HEIGHT - 200
-        for i, control in enumerate(controls):
-            color = NEON_GREEN if control.endswith(":") else NEON_CYAN
-            if "EMERGENCY" in control:
-                color = DANGER_RED
+        for i, name in enumerate(system_names):
+            # Arrange systems in a rough grid
+            x = (i % 5) * 200 + random.randint(-50, 50)
+            y = (i // 5) * 150 + random.randint(-30, 30)
             
-            text = font.render(control, True, color)
-            surface.blit(text, (10, y_start + i * 12))
+            system = StarSystem(name, x, y)
+            self.galaxy_map[name] = system
+        
+        # Create alien species
+        alien_names = ['Zorblaxians', 'Crystallites', 'Voidwalkers', 'Technomancers', 'Starhunters']
+        for name in alien_names:
+            alien = AlienSpecies(name)
+            self.alien_species[name] = alien
+            
+            # Assign territory
+            available_systems = [s for s in self.galaxy_map.values() if s.alien_presence is None]
+            if available_systems:
+                territory_size = random.randint(1, 3)
+                for _ in range(territory_size):
+                    if available_systems:
+                        system = random.choice(available_systems)
+                        system.alien_presence = alien
+                        alien.territory.append(system.name)
+                        available_systems.remove(system)
     
-    def handle_input(self, keys):
-        """Handle keyboard input"""
-        # Speed controls
-        if keys[pygame.K_UP]:
-            max_speed = 0.05 if self.warp_mode < 2 else 0.1
-            self.speed = min(self.speed + 0.002, max_speed)
-        if keys[pygame.K_DOWN]:
-            self.speed = max(self.speed - 0.002, 0.001)
+    def update_game(self):
+        """Update game state"""
+        self.game_time += 1
+        self.day_cycle = (self.game_time * 0.01) % 1.0
         
-        # Navigation controls
-        if keys[pygame.K_w]:
-            self.direction_y = max(self.direction_y - 0.02, -0.8)
-        if keys[pygame.K_s]:
-            self.direction_y = min(self.direction_y + 0.02, 0.8)
-        if keys[pygame.K_a]:
-            self.direction_x = max(self.direction_x - 0.02, -0.8)
-        if keys[pygame.K_d]:
-            self.direction_x = min(self.direction_x + 0.02, 0.8)
+        # Update ship systems
+        self.update_ship_systems()
         
-        # Star density controls
-        if keys[pygame.K_PLUS] or keys[pygame.K_EQUALS]:
-            self.star_count = min(self.star_count + 5, 800)
-            if len(self.stars) < self.star_count:
-                self.stars.extend([Star() for _ in range(self.star_count - len(self.stars))])
-        if keys[pygame.K_MINUS]:
-            self.star_count = max(self.star_count - 5, 50)
-            if len(self.stars) > self.star_count:
-                self.stars = self.stars[:self.star_count]
+        # Update current system
+        if self.current_system:
+            self.update_system_dynamics()
         
-        # Auto pilot
-        if self.auto_pilot:
-            # Automatically navigate to avoid hazards
-            if self.solar_storm or self.asteroid_field or self.quantum_anomaly:
-                self.direction_x += random.uniform(-0.01, 0.01)
-                self.direction_y += random.uniform(-0.01, 0.01)
-            
-            # Maintain optimal speed
-            if self.fuel_level > 50:
-                self.speed = min(self.speed + 0.001, 0.03)
+        # Update alien relationships
+        self.update_alien_relations()
+    
+    def update_ship_systems(self):
+        """Update ship systems and consumption"""
+        # Fuel consumption
+        if self.game_state == GameState.SPACE_FLIGHT:
+            self.player_ship.fuel -= 0.01
+        
+        # Shield regeneration
+        if self.player_ship.shields < self.player_ship.max_shields:
+            self.player_ship.shields += 0.1
+            self.player_ship.shields = min(self.player_ship.shields, self.player_ship.max_shields)
+        
+        # Life support
+        if self.player_ship.life_support < 100:
+            self.player_ship.life_support += 0.05
+            self.player_ship.life_support = min(self.player_ship.life_support, 100)
+        
+        # Emergency situations
+        if self.player_ship.fuel <= 0:
+            self.handle_emergency('fuel_depleted')
+        if self.player_ship.hull_integrity <= 0:
+            self.handle_emergency('hull_breach')
+    
+    def update_system_dynamics(self):
+        """Update dynamic elements in current system"""
+        # Update planetary conditions
+        for planet in self.current_system.planets:
+            # Seasonal changes, weather, etc.
+            pass
+        
+        # Update alien patrols
+        if self.current_system.alien_presence:
+            # Alien ship movements, etc.
+            pass
+    
+    def update_alien_relations(self):
+        """Update relationships with alien species"""
+        for alien_name, alien in self.alien_species.items():
+            if alien_name in self.player_reputation:
+                # Reputation decay over time
+                if self.player_reputation[alien_name] > 0:
+                    self.player_reputation[alien_name] -= 0.001
+                elif self.player_reputation[alien_name] < 0:
+                    self.player_reputation[alien_name] += 0.001
             else:
-                self.speed = max(self.speed - 0.001, 0.01)
+                self.player_reputation[alien_name] = 0
     
-    def cycle_color_mode(self):
-        """Cycle scanner mode"""
-        self.color_mode = (self.color_mode + 1) % len(self.color_mode_names)
+    def handle_emergency(self, emergency_type: str):
+        """Handle emergency situations"""
+        if emergency_type == 'fuel_depleted':
+            # Emergency fuel rationing
+            self.player_ship.fuel = 1
+        elif emergency_type == 'hull_breach':
+            # Emergency repairs
+            self.player_ship.hull_integrity = 1
+            self.player_ship.life_support -= 20
     
-    def cycle_warp_mode(self):
-        """Cycle warp mode"""
-        if not self.emergency_mode:
-            self.warp_mode = (self.warp_mode + 1) % (len(self.warp_mode_names) - 1)  # Exclude emergency
+    def land_on_planet(self, planet: Planet):
+        """Land on a planet"""
+        if self.player_ship.fuel >= 5:  # Landing requires fuel
+            self.game_state = GameState.PLANET_SURFACE
+            self.current_planet = planet
+            self.player_ship.fuel -= 5
+            self.visited_planets.add(planet.name)
+            return True
+        return False
+    
+    def take_off_from_planet(self):
+        """Take off from planet"""
+        if self.player_ship.fuel >= 10:  # Takeoff requires more fuel
+            self.game_state = GameState.SPACE_FLIGHT
+            self.current_planet = None
+            self.player_ship.fuel -= 10
+            return True
+        return False
+    
+    def dock_at_station(self, station: Dict[str, Any]):
+        """Dock at a space station"""
+        self.game_state = GameState.STATION_DOCKED
+        self.selected_object = station
+        return True
+    
+    def undock_from_station(self):
+        """Undock from station"""
+        self.game_state = GameState.SPACE_FLIGHT
+        self.selected_object = None
+        return True
+    
+    def hyperjump_to_system(self, system_name: str):
+        """Jump to another star system"""
+        if system_name in self.galaxy_map:
+            target_system = self.galaxy_map[system_name]
+            distance = math.sqrt((target_system.x - self.current_system.x)**2 + 
+                               (target_system.y - self.current_system.y)**2)
+            
+            fuel_cost = distance * 0.1 * (1.0 / self.player_ship.hyperdrive_class)
+            
+            if self.player_ship.fuel >= fuel_cost:
+                self.current_system = target_system
+                self.player_ship.fuel -= fuel_cost
+                self.discovered_systems.add(system_name)
+                return True
+        return False
+    
+    def mine_resources(self, location: Dict[str, Any]):
+        """Mine resources from asteroids or planets"""
+        if 'resources' in location:
+            mined = {}
+            for resource, amount in location['resources'].items():
+                if amount > 0:
+                    mine_amount = min(amount, random.randint(1, 10))
+                    if self.player_ship.can_add_cargo(resource, mine_amount):
+                        self.player_ship.add_cargo(resource, mine_amount)
+                        location['resources'][resource] -= mine_amount
+                        mined[resource] = mine_amount
+            return mined
+        return {}
+    
+    def trade_with_alien(self, alien: AlienSpecies, offer: Dict[ResourceType, int], 
+                        request: Dict[ResourceType, int]) -> bool:
+        """Trade resources with alien species"""
+        # Check if player has offered resources
+        for resource, amount in offer.items():
+            if self.player_ship.cargo[resource] < amount:
+                return False
+        
+        # Check if alien wants the offered resources
+        wants_trade = any(resource in alien.preferred_resources for resource in offer.keys())
+        
+        if wants_trade:
+            # Remove offered resources from player
+            for resource, amount in offer.items():
+                self.player_ship.remove_cargo(resource, amount)
+            
+            # Add requested resources to player
+            for resource, amount in request.items():
+                self.player_ship.add_cargo(resource, amount)
+            
+            # Improve reputation
+            self.player_reputation[alien.name] += 5
+            return True
+        
+        return False
+    
+    def start_alien_encounter(self, alien: AlienSpecies):
+        """Start an encounter with aliens"""
+        self.game_state = GameState.ALIEN_ENCOUNTER
+        self.selected_object = alien
+    
+    def end_alien_encounter(self):
+        """End alien encounter"""
+        self.game_state = GameState.SPACE_FLIGHT
+        self.selected_object = None
+    
+    def upgrade_ship(self, upgrade_type: str, cost: int):
+        """Upgrade ship systems"""
+        if self.player_ship.cargo[ResourceType.CREDITS] >= cost:
+            self.player_ship.remove_cargo(ResourceType.CREDITS, cost)
+            self.player_ship.apply_upgrade(upgrade_type)
+            return True
+        return False
+    
+    def draw_space_view(self, surface):
+        """Draw the space flight view"""
+        # Background
+        surface.fill(SPACE_COLORS['deep_space'])
+        
+        # Draw stars
+        for i in range(self.star_density):
+            x = (i * 37) % WIDTH
+            y = (i * 73) % HEIGHT
+            brightness = (i * 17) % 255
+            color = (brightness, brightness, brightness)
+            pygame.draw.circle(surface, color, (x, y), 1)
+        
+        # Draw current system star
+        if self.current_system:
+            star_x = WIDTH // 2
+            star_y = HEIGHT // 2
+            star_size = 8
+            pygame.draw.circle(surface, self.current_system.star_color, (star_x, star_y), star_size)
+            
+            # Draw system name
+            font = pygame.font.Font(None, 24)
+            text = font.render(self.current_system.name, True, NEON_CYAN)
+            surface.blit(text, (star_x - text.get_width()//2, star_y - 40))
+        
+        # Draw planets
+        if self.current_system:
+            for i, planet in enumerate(self.current_system.planets):
+                angle = (self.game_time * 0.01 + i * 0.5) % (2 * math.pi)
+                orbit_radius = 50 + i * 25
+                planet_x = WIDTH // 2 + math.cos(angle) * orbit_radius
+                planet_y = HEIGHT // 2 + math.sin(angle) * orbit_radius
+                
+                planet_size = int(planet.size * 3)
+                pygame.draw.circle(surface, planet.get_color(), (int(planet_x), int(planet_y)), planet_size)
+                
+                # Planet name
+                if self.show_system_info:
+                    font = pygame.font.Font(None, 16)
+                    text = font.render(planet.name, True, NEON_GREEN)
+                    surface.blit(text, (int(planet_x) - text.get_width()//2, int(planet_y) + planet_size + 5))
+        
+        # Draw space stations
+        if self.current_system:
+            for station in self.current_system.space_stations:
+                station_x = station['x']
+                station_y = station['y']
+                pygame.draw.rect(surface, SPACE_COLORS['ship_hull'], (station_x, station_y, 12, 8))
+                
+                # Station name
+                if self.show_system_info:
+                    font = pygame.font.Font(None, 14)
+                    text = font.render(station['name'], True, NEON_YELLOW)
+                    surface.blit(text, (station_x, station_y - 15))
+        
+        # Draw asteroid fields
+        if self.current_system:
+            for field in self.current_system.asteroid_fields:
+                field_x = field['x']
+                field_y = field['y']
+                field_size = field['size']
+                
+                # Draw multiple asteroids
+                for i in range(field_size // 10):
+                    ast_x = field_x + random.randint(-field_size//2, field_size//2)
+                    ast_y = field_y + random.randint(-field_size//2, field_size//2)
+                    pygame.draw.circle(surface, SPACE_COLORS['asteroid'], (ast_x, ast_y), 2)
+        
+        # Draw player ship
+        ship_x = WIDTH // 2
+        ship_y = HEIGHT // 2 + 100
+        pygame.draw.polygon(surface, SPACE_COLORS['ship_hull'], 
+                          [(ship_x, ship_y-5), (ship_x-8, ship_y+5), (ship_x+8, ship_y+5)])
+        
+        # Ship trail
+        for i in range(5):
+            trail_x = ship_x + random.randint(-2, 2)
+            trail_y = ship_y + 8 + i * 2
+            trail_alpha = 255 - i * 50
+            pygame.draw.circle(surface, (100, 150, 255), (trail_x, trail_y), 1)
+    
+    def draw_planet_surface(self, surface):
+        """Draw planet surface exploration view"""
+        if not self.current_planet:
+            return
+        
+        # Background based on planet type
+        bg_color = self.current_planet.get_color()
+        surface.fill(bg_color)
+        
+        # Draw terrain features
+        for i in range(50):
+            x = (i * 47) % WIDTH
+            y = (i * 83) % HEIGHT
+            feature_color = tuple(max(0, min(255, c + random.randint(-30, 30))) for c in bg_color)
+            pygame.draw.circle(surface, feature_color, (x, y), random.randint(2, 8))
+        
+        # Draw points of interest
+        for poi in self.current_planet.points_of_interest:
+            poi_x = poi['x']
+            poi_y = poi['y']
+            
+            # Different symbols for different POI types
+            if poi['type'] == 'Ruins':
+                pygame.draw.rect(surface, NEON_PURPLE, (poi_x, poi_y, 8, 8))
+            elif poi['type'] == 'Resource Deposit':
+                pygame.draw.circle(surface, NEON_YELLOW, (poi_x, poi_y), 6)
+            elif poi['type'] == 'Alien Structure':
+                pygame.draw.polygon(surface, NEON_RED, 
+                                  [(poi_x, poi_y-6), (poi_x-6, poi_y+6), (poi_x+6, poi_y+6)])
+            else:
+                pygame.draw.circle(surface, NEON_GREEN, (poi_x, poi_y), 4)
+        
+        # Draw player character
+        player_x = WIDTH // 2
+        player_y = HEIGHT // 2
+        pygame.draw.circle(surface, NEON_CYAN, (player_x, player_y), 5)
+        
+        # Draw life support indicator
+        life_support_bar = pygame.Rect(10, HEIGHT - 30, 100, 10)
+        pygame.draw.rect(surface, NEON_RED, life_support_bar)
+        life_support_fill = pygame.Rect(10, HEIGHT - 30, int(self.player_ship.life_support), 10)
+        pygame.draw.rect(surface, NEON_GREEN, life_support_fill)
+        
+        # Planet info
+        font = pygame.font.Font(None, 24)
+        planet_name = font.render(self.current_planet.name, True, NEON_CYAN)
+        surface.blit(planet_name, (10, 10))
+        
+        font = pygame.font.Font(None, 16)
+        planet_type = font.render(f"Type: {self.current_planet.planet_type.name}", True, NEON_GREEN)
+        surface.blit(planet_type, (10, 35))
+        
+        temp_text = font.render(f"Temperature: {self.current_planet.temperature:.1f}°C", True, NEON_YELLOW)
+        surface.blit(temp_text, (10, 55))
+    
+    def draw_hud(self, surface):
+        """Draw heads-up display"""
+        if not self.show_hud:
+            return
+        
+        # HUD background
+        hud_rect = pygame.Rect(0, 0, WIDTH, 50)
+        pygame.draw.rect(surface, (0, 0, 0, 180), hud_rect)
+        
+        # Ship status
+        font = pygame.font.Font(None, 16)
+        
+        # Hull integrity
+        hull_text = f"Hull: {self.player_ship.hull_integrity:.0f}/{self.player_ship.max_hull:.0f}"
+        text = font.render(hull_text, True, NEON_GREEN if self.player_ship.hull_integrity > 50 else NEON_RED)
+        surface.blit(text, (10, 10))
+        
+        # Shields
+        shield_text = f"Shields: {self.player_ship.shields:.0f}/{self.player_ship.max_shields:.0f}"
+        text = font.render(shield_text, True, NEON_BLUE)
+        surface.blit(text, (10, 25))
+        
+        # Fuel
+        fuel_text = f"Fuel: {self.player_ship.fuel:.0f}/{self.player_ship.max_fuel:.0f}"
+        text = font.render(fuel_text, True, NEON_YELLOW if self.player_ship.fuel > 25 else NEON_RED)
+        surface.blit(text, (150, 10))
+        
+        # Credits
+        credits_text = f"Credits: {self.player_ship.cargo[ResourceType.CREDITS]}"
+        text = font.render(credits_text, True, NEON_GREEN)
+        surface.blit(text, (150, 25))
+        
+        # Cargo
+        cargo_used = self.player_ship.get_cargo_used()
+        cargo_text = f"Cargo: {cargo_used}/{self.player_ship.cargo_capacity}"
+        text = font.render(cargo_text, True, NEON_CYAN)
+        surface.blit(text, (300, 10))
+        
+        # Game state
+        state_text = self.game_state.name.replace('_', ' ').title()
+        text = font.render(state_text, True, NEON_PURPLE)
+        surface.blit(text, (300, 25))
+    
+    def draw_scanner(self, surface):
+        """Draw scanner display"""
+        if not self.show_scanner:
+            return
+        
+        # Scanner background
+        scanner_rect = pygame.Rect(WIDTH - 120, 60, 110, 110)
+        pygame.draw.rect(surface, (0, 0, 0, 180), scanner_rect)
+        pygame.draw.rect(surface, NEON_GREEN, scanner_rect, 2)
+        
+        # Scanner grid
+        for i in range(5):
+            x = WIDTH - 120 + i * 22
+            y = 60 + i * 22
+            pygame.draw.line(surface, (0, 100, 0), (x, 60), (x, 170), 1)
+            pygame.draw.line(surface, (0, 100, 0), (WIDTH - 120, y), (WIDTH - 10, y), 1)
+        
+        # Scanner center (player position)
+        center_x = WIDTH - 65
+        center_y = 115
+        pygame.draw.circle(surface, NEON_CYAN, (center_x, center_y), 3)
+        
+        # Scanner objects
+        if self.current_system:
+            for i, planet in enumerate(self.current_system.planets):
+                angle = (self.game_time * 0.01 + i * 0.5) % (2 * math.pi)
+                orbit_radius = 10 + i * 8
+                if orbit_radius < 50:  # Within scanner range
+                    planet_x = center_x + math.cos(angle) * orbit_radius
+                    planet_y = center_y + math.sin(angle) * orbit_radius
+                    pygame.draw.circle(surface, planet.get_color(), (int(planet_x), int(planet_y)), 2)
+    
+    def draw_controls(self, surface):
+        """Draw control instructions"""
+        if self.game_state == GameState.SPACE_FLIGHT:
+            controls = [
+                "WASD - Navigate",
+                "E - Land on Planet",
+                "Q - Dock at Station",
+                "M - Galaxy Map",
+                "T - Trade Mode",
+                "U - Upgrade Ship",
+                "F8 - Fullscreen",
+                "ESC - Return to Launcher"
+            ]
+        elif self.game_state == GameState.PLANET_SURFACE:
+            controls = [
+                "WASD - Move",
+                "E - Interact/Mine",
+                "R - Take Off",
+                "ESC - Return to Launcher"
+            ]
         else:
-            self.warp_mode = 4  # Force emergency mode
+            controls = [
+                "ESC - Return to Space",
+                "Enter - Confirm",
+                "Tab - Next Option"
+            ]
+        
+        # Controls background
+        controls_rect = pygame.Rect(10, HEIGHT - 120, 200, 110)
+        pygame.draw.rect(surface, (0, 0, 0, 180), controls_rect)
+        
+        font = pygame.font.Font(None, 14)
+        for i, control in enumerate(controls):
+            text = font.render(control, True, NEON_YELLOW)
+            surface.blit(text, (15, HEIGHT - 115 + i * 12))
     
-    def toggle_twinkle(self):
-        """Toggle stellar twinkle effect"""
-        self.twinkle = not self.twinkle
+    def handle_input(self, keys, events):
+        """Handle user input"""
+        # Handle events
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_e:
+                    self.handle_interact()
+                elif event.key == pygame.K_q:
+                    self.handle_dock()
+                elif event.key == pygame.K_r:
+                    self.handle_takeoff()
+                elif event.key == pygame.K_m:
+                    self.toggle_galaxy_map()
+                elif event.key == pygame.K_t:
+                    self.enter_trading_mode()
+                elif event.key == pygame.K_u:
+                    self.enter_upgrade_mode()
+                elif event.key == pygame.K_h:
+                    self.show_hud = not self.show_hud
+                elif event.key == pygame.K_n:
+                    self.show_scanner = not self.show_scanner
+                elif event.key == pygame.K_i:
+                    self.show_system_info = not self.show_system_info
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:  # Left click
+                    self.handle_mouse_click(event.pos)
+        
+        # Continuous input
+        if keys[pygame.K_w] or keys[pygame.K_UP]:
+            self.camera_y += 2
+        if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+            self.camera_y -= 2
+        if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+            self.camera_x += 2
+        if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+            self.camera_x -= 2
     
-    def toggle_hud(self):
-        """Toggle HUD display"""
-        self.show_hud = not self.show_hud
+    def handle_interact(self):
+        """Handle interaction based on current state"""
+        if self.game_state == GameState.SPACE_FLIGHT:
+            # Try to land on nearest planet
+            if self.current_system and self.current_system.planets:
+                nearest_planet = self.current_system.planets[0]  # Simplified
+                self.land_on_planet(nearest_planet)
+        elif self.game_state == GameState.PLANET_SURFACE:
+            # Try to mine/interact with nearest POI
+            if self.current_planet and self.current_planet.points_of_interest:
+                poi = self.current_planet.points_of_interest[0]  # Simplified
+                self.mine_resources(poi)
     
-    def toggle_nav_computer(self):
-        """Toggle navigation computer"""
-        self.navigation_computer = not self.navigation_computer
+    def handle_dock(self):
+        """Handle docking with stations"""
+        if self.game_state == GameState.SPACE_FLIGHT:
+            if self.current_system and self.current_system.space_stations:
+                station = self.current_system.space_stations[0]  # Simplified
+                self.dock_at_station(station)
+        elif self.game_state == GameState.STATION_DOCKED:
+            self.undock_from_station()
     
-    def toggle_auto_pilot(self):
-        """Toggle auto pilot"""
-        self.auto_pilot = not self.auto_pilot
+    def handle_takeoff(self):
+        """Handle taking off from planet"""
+        if self.game_state == GameState.PLANET_SURFACE:
+            self.take_off_from_planet()
     
-    def emergency_stop(self):
-        """Emergency stop all systems"""
-        self.emergency_mode = True
-        self.speed = 0.005
-        self.direction_x = 0
-        self.direction_y = 0
-        self.warp_mode = 4
+    def toggle_galaxy_map(self):
+        """Toggle galaxy map view"""
+        if self.game_state == GameState.GALAXY_MAP:
+            self.game_state = GameState.SPACE_FLIGHT
+        else:
+            self.game_state = GameState.GALAXY_MAP
     
-    def reset_navigation(self):
-        """Reset navigation to center"""
-        self.direction_x = 0
-        self.direction_y = 0
+    def enter_trading_mode(self):
+        """Enter trading mode"""
+        self.game_state = GameState.TRADING
     
-    def full_reset(self):
-        """Full system reset"""
-        self.speed = 0.01
-        self.star_count = 200
-        self.color_mode = 0
-        self.warp_mode = 0
-        self.twinkle = False
-        self.fuel_level = 100.0
-        self.energy_level = 100.0
-        self.hull_integrity = 100.0
-        self.warp_core_temp = 0.0
-        self.emergency_mode = False
-        self.auto_pilot = False
-        self.reset_navigation()
-        self.initialize_systems()
-        self.clear_hazards()
+    def enter_upgrade_mode(self):
+        """Enter ship upgrade mode"""
+        self.game_state = GameState.SHIP_UPGRADE
+    
+    def handle_mouse_click(self, pos):
+        """Handle mouse clicks for selection"""
+        # Implementation depends on current state
+        pass
 
 def toggle_fullscreen():
-    """Toggle fullscreen mode"""
+    """Toggle fullscreen mode using F8"""
     global screen, fullscreen
     
     if fullscreen:
         screen = pygame.display.set_mode((WIDTH, HEIGHT))
         fullscreen = False
     else:
-        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
         fullscreen = True
 
 def return_to_launcher():
     """Return to the main launcher"""
-    pygame.quit()
     try:
         subprocess.run([sys.executable, "run_art.py"], check=True)
-    except Exception as e:
-        print(f"Could not return to launcher: {e}")
-    finally:
-        sys.exit(0)
+    except subprocess.CalledProcessError:
+        print("Could not launch main menu")
+    pygame.quit()
+    sys.exit()
 
 def main():
-    warp_drive = AdvancedWarpDrive()
-    running = True
-    show_ui = True
+    """Main game loop"""
+    global screen
     
+    # Initialize game
+    game = SpaceExplorationGame()
+    
+    # Main game loop
+    running = True
     while running:
-        keys = pygame.key.get_pressed()
-        
-        for event in pygame.event.get():
+        # Handle events
+        events = pygame.event.get()
+        for event in events:
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    return_to_launcher()
-                elif event.key == pygame.K_F11:
+                if event.key == pygame.K_F8:
                     toggle_fullscreen()
-                elif event.key == pygame.K_c:
-                    warp_drive.cycle_color_mode()
-                elif event.key == pygame.K_m:
-                    warp_drive.cycle_warp_mode()
-                elif event.key == pygame.K_t:
-                    warp_drive.toggle_twinkle()
-                elif event.key == pygame.K_h:
-                    warp_drive.toggle_hud()
-                elif event.key == pygame.K_n:
-                    warp_drive.toggle_nav_computer()
-                elif event.key == pygame.K_z:
-                    warp_drive.toggle_auto_pilot()
-                elif event.key == pygame.K_e:
-                    warp_drive.emergency_stop()
-                elif event.key == pygame.K_r:
-                    warp_drive.full_reset()
-                elif event.key == pygame.K_SPACE:
-                    warp_drive.reset_navigation()
-                elif event.key == pygame.K_F1:
-                    show_ui = not show_ui
+                elif event.key == pygame.K_ESCAPE:
+                    return_to_launcher()
         
-        # Handle continuous input
-        warp_drive.handle_input(keys)
+        # Handle input
+        keys = pygame.key.get_pressed()
+        game.handle_input(keys, events)
         
-        # Calculate time-based animation
-        current_time = time.time() - start_time
-        
-        # Update all systems
-        warp_drive.update_systems(current_time)
+        # Update game
+        game.update_game()
         
         # Clear screen
         screen.fill(CYBER_BLACK)
         
-        # Draw hazard effects first
-        warp_drive.draw_hazard_effects(screen, current_time)
+        # Draw based on game state
+        if game.game_state == GameState.SPACE_FLIGHT:
+            game.draw_space_view(screen)
+        elif game.game_state == GameState.PLANET_SURFACE:
+            game.draw_planet_surface(screen)
+        elif game.game_state == GameState.GALAXY_MAP:
+            # Draw galaxy map (simplified)
+            game.draw_space_view(screen)
         
-        # Draw warp tunnel effects
-        warp_drive.draw_warp_tunnel(screen, current_time)
+        # Draw UI
+        game.draw_hud(screen)
+        game.draw_scanner(screen)
+        game.draw_controls(screen)
         
-        # Update and draw stars
-        warp_drive.update_stars(current_time)
-        warp_drive.draw_stars(screen, current_time)
-        
-        # Draw quantum field
-        warp_drive.draw_quantum_field(screen)
-        
-        # Draw advanced HUD
-        warp_drive.draw_advanced_hud(screen)
-        
-        # Draw navigation computer
-        warp_drive.draw_navigation_computer(screen)
-        
-        # Draw UI if enabled
-        if show_ui:
-            # Semi-transparent background for UI
-            ui_surface = pygame.Surface((400, 250))
-            ui_surface.set_alpha(200)
-            ui_surface.fill(CYBER_BLACK)
-            screen.blit(ui_surface, (5, 5))
-            
-            warp_drive.draw_system_status(screen)
-            warp_drive.draw_controls_help(screen)
-        
+        # Update display
         pygame.display.flip()
-        clock.tick(60)
+        clock.tick(60)  # 60 FPS for smooth experience
     
     pygame.quit()
+    sys.exit()
 
 if __name__ == "__main__":
     main() 
