@@ -1,24 +1,52 @@
 #!/usr/bin/env python3
 """
-Interactive Water Ripples - Wave physics simulation with cyberpunk aesthetics
+Interactive Water Ripples Effect - Realistic water wave simulation with pixel art
 Perfect for Raspberry Pi 5 with 3.5" display
-RETRO CYBERPUNK PIXEL ART VERSION
+PIXEL ART INTERACTIVE VERSION
 """
 
 import pygame
+import random
 import math
 import time
-import random
-import os
+import sys
+import subprocess
 
 # Initialize Pygame
 pygame.init()
 
-# Screen dimensions (optimized for 3.5" Pi display)
+# Screen dimensions
 WIDTH = 480
 HEIGHT = 320
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("◉ RIPPLES.EXE - CYBERPUNK MODE ◉")
+pygame.display.set_caption("Interactive Water Ripples")
+
+# Fullscreen support
+fullscreen = False
+
+clock = pygame.time.Clock()
+start_time = time.time()
+
+def toggle_fullscreen():
+    """Toggle fullscreen mode"""
+    global screen, fullscreen
+    
+    if fullscreen:
+        screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        fullscreen = False
+    else:
+        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        fullscreen = True
+
+def return_to_launcher():
+    """Return to the main launcher"""
+    pygame.quit()
+    try:
+        subprocess.run([sys.executable, "run_art.py"], check=True)
+    except Exception as e:
+        print(f"Could not return to launcher: {e}")
+    finally:
+        sys.exit(0)
 
 # Cyberpunk color palette
 NEON_CYAN = (0, 255, 255)
@@ -217,24 +245,24 @@ class Ripple:
             for i in range(3):
                 radius = int(self.radius + i * 8)
                 if radius > 0:
-                    alpha = int(self.strength * 150)
+                    alpha = max(0, min(255, int(self.strength * 150)))
                     
                     # Color based on mode
                     if color_mode == 0:  # Cyberpunk
-                        color = (100, 150 + alpha, 255)
+                        color = (max(0, min(255, 100)), max(0, min(255, 150 + alpha)), max(0, min(255, 255)))
                     elif color_mode == 1:  # Neon
                         hue = (time_val * 100 + self.color_phase) % 360
                         color = (
-                            int(255 * abs(math.sin(hue * math.pi / 180))),
-                            int(255 * abs(math.sin((hue + 120) * math.pi / 180))),
-                            int(255 * abs(math.sin((hue + 240) * math.pi / 180)))
+                            max(0, min(255, int(255 * abs(math.sin(hue * math.pi / 180))))),
+                            max(0, min(255, int(255 * abs(math.sin((hue + 120) * math.pi / 180))))),
+                            max(0, min(255, int(255 * abs(math.sin((hue + 240) * math.pi / 180)))))
                         )
                     elif color_mode == 2:  # Matrix
-                        color = (50, 255, 50)
+                        color = (max(0, min(255, 50)), max(0, min(255, 255)), max(0, min(255, 50)))
                     elif color_mode == 3:  # Synthwave
-                        color = (255, 100, 255)
+                        color = (max(0, min(255, 255)), max(0, min(255, 100)), max(0, min(255, 255)))
                     else:  # Retro
-                        color = (255, 255, 100)
+                        color = (max(0, min(255, 255)), max(0, min(255, 255)), max(0, min(255, 100)))
                     
                     # Draw circle outline
                     if radius < self.max_radius:
@@ -558,7 +586,11 @@ def main():
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    running = False
+                    return_to_launcher()
+                elif event.key == pygame.K_F11:
+                    toggle_fullscreen()
+                elif event.key == pygame.K_h:
+                    show_ui = not show_ui
                 elif event.key == pygame.K_t:
                     ripples.cycle_ripple_type()
                 elif event.key == pygame.K_c:
@@ -567,8 +599,6 @@ def main():
                     ripples.auto_mode = not ripples.auto_mode
                 elif event.key == pygame.K_r:
                     ripples.reset()
-                elif event.key == pygame.K_h:
-                    show_ui = not show_ui
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 # Create ripple at mouse position
                 mouse_x, mouse_y = pygame.mouse.get_pos()

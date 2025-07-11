@@ -1,24 +1,52 @@
 #!/usr/bin/env python3
 """
-Interactive Spiral Galaxy - Space simulation with cyberpunk aesthetics
+Interactive Spiral Galaxy Effect - Rotating spiral galaxy with stars
 Perfect for Raspberry Pi 5 with 3.5" display
-RETRO CYBERPUNK PIXEL ART VERSION
+PIXEL ART INTERACTIVE VERSION
 """
 
 import pygame
+import random
 import math
 import time
-import random
-import os
+import sys
+import subprocess
 
 # Initialize Pygame
 pygame.init()
 
-# Screen dimensions (optimized for 3.5" Pi display)
+# Screen dimensions
 WIDTH = 480
 HEIGHT = 320
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("◉ GALAXY.EXE - CYBERPUNK MODE ◉")
+pygame.display.set_caption("Interactive Spiral Galaxy")
+
+# Fullscreen support
+fullscreen = False
+
+clock = pygame.time.Clock()
+start_time = time.time()
+
+def toggle_fullscreen():
+    """Toggle fullscreen mode"""
+    global screen, fullscreen
+    
+    if fullscreen:
+        screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        fullscreen = False
+    else:
+        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        fullscreen = True
+
+def return_to_launcher():
+    """Return to the main launcher"""
+    pygame.quit()
+    try:
+        subprocess.run([sys.executable, "run_art.py"], check=True)
+    except Exception as e:
+        print(f"Could not return to launcher: {e}")
+    finally:
+        sys.exit(0)
 
 # Cyberpunk color palette
 NEON_CYAN = (0, 255, 255)
@@ -276,20 +304,20 @@ class InteractiveGalaxy:
         
         # Calculate number of particles based on density
         base_particles = int(150 * self.star_density)
-    
-    # Create multiple spiral arms
+        
+        # Create multiple spiral arms
         for arm in range(self.spiral_arms):
             particles_per_arm = base_particles // self.spiral_arms
             for i in range(particles_per_arm):
-            angle = random.uniform(0, 4 * math.pi)
-            distance = random.uniform(10, 150)
+                angle = random.uniform(0, 4 * math.pi)
+                distance = random.uniform(10, 150)
                 star_type = random.randint(0, 2)  # 0: Main, 1: Giant, 2: Dwarf
                 self.particles.append(Particle(angle, distance, arm, star_type))
-    
+        
         # Add some central particles (galactic core)
         for i in range(int(50 * self.star_density)):
-        angle = random.uniform(0, 2 * math.pi)
-        distance = random.uniform(5, 30)
+            angle = random.uniform(0, 2 * math.pi)
+            distance = random.uniform(5, 30)
             star_type = 1  # Giants in the core
             self.particles.append(Particle(angle, distance, 0, star_type))
     
@@ -515,13 +543,15 @@ def main():
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    running = False
+                    return_to_launcher()
+                elif event.key == pygame.K_F11:
+                    toggle_fullscreen()
+                elif event.key == pygame.K_h:
+                    show_ui = not show_ui
                 elif event.key == pygame.K_c:
                     galaxy.cycle_color_mode()
                 elif event.key == pygame.K_r:
                     galaxy.reset()
-                elif event.key == pygame.K_h:
-                    show_ui = not show_ui
         
         # Handle continuous input
         galaxy.handle_input(keys)

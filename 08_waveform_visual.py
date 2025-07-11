@@ -234,7 +234,7 @@ class InteractiveWaveform:
                 r = int(57 * base_intensity)
                 g = int(255 * base_intensity)
                 b = int(20 * base_intensity)
-        else:
+            else:
                 r = int(255 * base_intensity)
                 g = int(255 * base_intensity)
                 b = int(0 * base_intensity)
@@ -257,7 +257,7 @@ class InteractiveWaveform:
             g = int(255 * (val if 0.2 < val < 0.9 else 0.1))
             b = int(255 * (val if val < 0.7 else 0.1))
         
-        return (min(255, r), min(255, g), min(255, b))
+        return (max(0, min(255, r)), max(0, min(255, g)), max(0, min(255, b)))
     
     def calculate_wave_value(self, x, time_val, wave_params):
         """Calculate wave value based on wave type"""
@@ -327,22 +327,22 @@ class InteractiveWaveform:
         for i in range(self.spectrum_bars):
             x = i * bar_width
             height = int(self.spectrum_data[i] * HEIGHT // 3)
-        
-        # Color based on frequency
-        hue = (i * 11 + time_val * 50) % 360
+            
+            # Color based on frequency
+            hue = (i * 11 + time_val * 50) % 360
             intensity = self.spectrum_data[i] * 0.8 + 0.2
             color = self.get_color_palette(hue, intensity, i)
-        
-        # Draw bar
+            
+            # Draw bar
             if height > 0:
-        rect = pygame.Rect(x, HEIGHT - height, bar_width - 2, height)
-        pygame.draw.rect(surface, color, rect)
-        
-        # Draw reflection
+                rect = pygame.Rect(x, HEIGHT - height, bar_width - 2, height)
+                pygame.draw.rect(surface, color, rect)
+                
+                # Draw reflection
                 if self.glow_intensity > 0:
                     reflection_color = tuple(int(c * self.glow_intensity * 0.3) for c in color)
                     reflection_rect = pygame.Rect(x, HEIGHT - height - 10, bar_width - 2, 10)
-        pygame.draw.rect(surface, reflection_color, reflection_rect)
+                    pygame.draw.rect(surface, reflection_color, reflection_rect)
 
     def draw_center_line(self, surface):
         """Draw center reference line"""

@@ -1,24 +1,52 @@
 #!/usr/bin/env python3
 """
-Interactive DNA Helix - Genetic visualization with cyberpunk aesthetics
+Interactive DNA Helix Effect - Double helix with genetic visualization
 Perfect for Raspberry Pi 5 with 3.5" display
-RETRO CYBERPUNK PIXEL ART VERSION
+PIXEL ART INTERACTIVE VERSION
 """
 
 import pygame
+import random
 import math
 import time
-import random
-import os
+import sys
+import subprocess
 
 # Initialize Pygame
 pygame.init()
 
-# Screen dimensions (optimized for 3.5" Pi display)
+# Screen dimensions
 WIDTH = 480
 HEIGHT = 320
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("◉ DNA.EXE - CYBERPUNK MODE ◉")
+pygame.display.set_caption("Interactive DNA Helix")
+
+# Fullscreen support
+fullscreen = False
+
+clock = pygame.time.Clock()
+start_time = time.time()
+
+def toggle_fullscreen():
+    """Toggle fullscreen mode"""
+    global screen, fullscreen
+    
+    if fullscreen:
+        screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        fullscreen = False
+    else:
+        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        fullscreen = True
+
+def return_to_launcher():
+    """Return to the main launcher"""
+    pygame.quit()
+    try:
+        subprocess.run([sys.executable, "run_art.py"], check=True)
+    except Exception as e:
+        print(f"Could not return to launcher: {e}")
+    finally:
+        sys.exit(0)
 
 # Cyberpunk color palette
 NEON_CYAN = (0, 255, 255)
@@ -314,7 +342,7 @@ class InteractiveDNA:
                 if self.pixel_style:
                     pygame.draw.rect(surface, shaded_color, (int(x - size//2), int(y - size//2), size, size))
                 else:
-                pygame.draw.circle(surface, shaded_color, (int(x), int(y)), size)
+                    pygame.draw.circle(surface, shaded_color, (int(x), int(y)), size)
                 
                 # Add glow effect
                 if self.glow_intensity > 0:
@@ -341,27 +369,27 @@ class InteractiveDNA:
         return points
 
     def draw_base_pairs(self, surface, strand1_points, strand2_points, time_val):
-    """Draw connections between base pairs"""
-    min_len = min(len(strand1_points), len(strand2_points))
-    
-    for i in range(min_len):
-        x1, y1, z1 = strand1_points[i]
-        x2, y2, z2 = strand2_points[i]
+        """Draw connections between base pairs"""
+        min_len = min(len(strand1_points), len(strand2_points))
         
-        # Only draw if both points are visible
-        if (0 <= y1 < HEIGHT and 0 <= x1 < WIDTH and 
-            0 <= y2 < HEIGHT and 0 <= x2 < WIDTH):
+        for i in range(min_len):
+            x1, y1, z1 = strand1_points[i]
+            x2, y2, z2 = strand2_points[i]
             
-            # Color based on average depth
-            avg_depth = (z1 + z2) / 2
-            depth_factor = (avg_depth / 50 + 1) / 2
-            
-            # Pulsing effect
-            pulse = 0.5 + 0.5 * math.sin(time_val * 3 + i * 0.1)
+            # Only draw if both points are visible
+            if (0 <= y1 < HEIGHT and 0 <= x1 < WIDTH and 
+                0 <= y2 < HEIGHT and 0 <= x2 < WIDTH):
+                
+                # Color based on average depth
+                avg_depth = (z1 + z2) / 2
+                depth_factor = (avg_depth / 50 + 1) / 2
+                
+                # Pulsing effect
+                pulse = 0.5 + 0.5 * math.sin(time_val * 3 + i * 0.1)
                 intensity = int(100 * depth_factor * pulse * self.brightness)
-            
+                
                 if self.color_mode == 0:  # Cyberpunk
-            pair_color = (intensity, intensity, intensity)
+                    pair_color = (intensity, intensity, intensity)
                 elif self.color_mode == 1:  # Neon
                     hue = (time_val * 100 + i * 20) % 360
                     pair_color = (
@@ -375,8 +403,8 @@ class InteractiveDNA:
                     pair_color = (intensity, intensity // 2, intensity)
                 else:  # Retro
                     pair_color = (intensity, intensity, intensity // 2)
-            
-            # Draw connection line
+                
+                # Draw connection line
                 if self.pixel_style:
                     # Pixel art style connection
                     steps = int(abs(x2 - x1) + abs(y2 - y1))
@@ -387,20 +415,20 @@ class InteractiveDNA:
                             py = int(y1 + t * (y2 - y1))
                             pygame.draw.rect(surface, pair_color, (px, py, 2, 2))
                 else:
-            pygame.draw.line(surface, pair_color, (int(x1), int(y1)), (int(x2), int(y2)), 1)
+                    pygame.draw.line(surface, pair_color, (int(x1), int(y1)), (int(x2), int(y2)), 1)
     
     def draw_molecular_background(self, surface, time_val):
-    """Draw molecular background effects"""
-    # Draw floating molecules
+        """Draw molecular background effects"""
+        # Draw floating molecules
         for i in range(15):
-        x = (i * 47 + time_val * 20) % WIDTH
-        y = (i * 71 + time_val * 15) % HEIGHT
-        
-        # Twinkling effect
-        brightness = 0.3 + 0.7 * abs(math.sin(time_val * 1.5 + i * 0.3))
+            x = (i * 47 + time_val * 20) % WIDTH
+            y = (i * 71 + time_val * 15) % HEIGHT
+            
+            # Twinkling effect
+            brightness = 0.3 + 0.7 * abs(math.sin(time_val * 1.5 + i * 0.3))
             
             if self.color_mode == 0:  # Cyberpunk
-        color = (int(brightness * 50), int(brightness * 50), int(brightness * 100))
+                color = (int(brightness * 50), int(brightness * 50), int(brightness * 100))
             elif self.color_mode == 1:  # Neon
                 hue = (time_val * 50 + i * 60) % 360
                 color = (
@@ -584,7 +612,9 @@ def main():
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    running = False
+                    return_to_launcher()
+                elif event.key == pygame.K_F11:
+                    toggle_fullscreen()
                 elif event.key == pygame.K_c:
                     dna.cycle_color_mode()
                 elif event.key == pygame.K_g:

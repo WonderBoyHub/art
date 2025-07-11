@@ -9,6 +9,8 @@ import pygame
 import random
 import math
 import time
+import sys
+import subprocess
 
 # Initialize Pygame
 pygame.init()
@@ -19,7 +21,31 @@ HEIGHT = 320
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Interactive Particle Fire")
 
+# Fullscreen support
+fullscreen = False
+
 clock = pygame.time.Clock()
+
+def toggle_fullscreen():
+    """Toggle fullscreen mode"""
+    global screen, fullscreen
+    
+    if fullscreen:
+        screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        fullscreen = False
+    else:
+        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        fullscreen = True
+
+def return_to_launcher():
+    """Return to the main launcher"""
+    pygame.quit()
+    try:
+        subprocess.run([sys.executable, "run_art.py"], check=True)
+    except Exception as e:
+        print(f"Could not return to launcher: {e}")
+    finally:
+        sys.exit(0)
 
 class FireParticle:
     def __init__(self, x, y, intensity=1.0, wind=0.0):
@@ -54,19 +80,19 @@ class FireParticle:
             # Pixel art style colors
             if self.life > 200:
                 # Hot core - white/yellow
-                color = (255, 255, int(255 * (255 - self.life) / 55))
+                color = (255, 255, max(0, min(255, int(255 * (255 - self.life) / 55))))
             elif self.life > 150:
                 # Bright flame - yellow/orange
-                color = (255, int(255 * (200 - self.life) / 50), 0)
+                color = (255, max(0, min(255, int(255 * (200 - self.life) / 50))), 0)
             elif self.life > 100:
                 # Orange flame
-                color = (255, int(140 * (150 - self.life) / 50), 0)
+                color = (255, max(0, min(255, int(140 * (150 - self.life) / 50))), 0)
             elif self.life > 50:
                 # Red flame
-                color = (int(255 * (self.life / 50)), 0, 0)
+                color = (max(0, min(255, int(255 * (self.life / 50)))), 0, 0)
             else:
                 # Dying embers - dark red
-                alpha = int(self.life * 3)
+                alpha = max(0, min(255, int(self.life * 3)))
                 color = (alpha, 0, 0)
             
             # Draw particle as pixel art block
@@ -179,15 +205,15 @@ class InteractiveFire:
     def get_original_color(self, particle):
         """Get original particle color"""
         if particle.life > 200:
-            return (255, 255, int(255 * (255 - particle.life) / 55))
+            return (255, 255, max(0, min(255, int(255 * (255 - particle.life) / 55))))
         elif particle.life > 150:
-            return (255, int(255 * (200 - particle.life) / 50), 0)
+            return (255, max(0, min(255, int(255 * (200 - particle.life) / 50))), 0)
         elif particle.life > 100:
-            return (255, int(140 * (150 - particle.life) / 50), 0)
+            return (255, max(0, min(255, int(140 * (150 - particle.life) / 50))), 0)
         elif particle.life > 50:
-            return (int(255 * (particle.life / 50)), 0, 0)
+            return (max(0, min(255, int(255 * (particle.life / 50)))), 0, 0)
         else:
-            alpha = int(particle.life * 3)
+            alpha = max(0, min(255, int(particle.life * 3)))
             return (alpha, 0, 0)
     
     def apply_color_mode(self, color):
@@ -196,11 +222,11 @@ class InteractiveFire:
         brightness = (r + g + b) / 3
         
         if self.color_mode == 1:  # Blue
-            return (0, int(brightness * 0.5), int(brightness))
+            return (0, max(0, min(255, int(brightness * 0.5))), max(0, min(255, int(brightness))))
         elif self.color_mode == 2:  # Green
-            return (0, int(brightness), int(brightness * 0.3))
+            return (0, max(0, min(255, int(brightness))), max(0, min(255, int(brightness * 0.3))))
         elif self.color_mode == 3:  # Purple
-            return (int(brightness * 0.8), 0, int(brightness))
+            return (max(0, min(255, int(brightness * 0.8))), 0, max(0, min(255, int(brightness))))
         else:
             return color
     
@@ -307,6 +333,10 @@ def main():
                     fire.spark_mode = True
                 elif event.key == pygame.K_h:
                     show_ui = not show_ui
+                elif event.key == pygame.K_F11:
+                    toggle_fullscreen()
+                elif event.key == pygame.K_ESCAPE:
+                    return_to_launcher()
         
         # Handle continuous input
         fire.handle_input(keys)
