@@ -51,26 +51,23 @@ def create_pixel_font(size):
 
 # Enhanced Art programs list with cyberpunk descriptions
 ART_PROGRAMS = [
-    ("01_plasma_effect.py", "PLASMA.EXE", "Neural pattern simulation ◇ 5 modes"),
+    ("01_dark_ages_rpg.py", "DARK.AGES.RPG", "Medieval fantasy RPG ◇ Economy & Politics"),
     ("02_particle_fire.py", "PYRO.SIM", "Thermal dynamics engine ◇ Wind control"),
     ("03_matrix_rain.py", "MATRIX.TERM", "Data stream visualizer ◇ 6 encodings"),
-    ("04_mandelbrot_zoom.py", "FRACTAL.DIVE", "Infinite geometry explorer ◇ Deep zoom"),
     ("05_starfield.py", "WARP.DRIVE", "Hyperspace navigator ◇ 4 warp modes"),
     ("06_game_of_life.py", "LIFE.SIM", "Cellular automaton lab ◇ 4 rule sets"),
-    ("07_rainbow_tunnel.py", "TUNNEL.VIZ", "Chromatic vortex system ◇ RGB shift"),
-    ("08_waveform_visual.py", "AUDIO.SCOPE", "Signal analysis display ◇ Frequency"),
     ("09_spiral_galaxy.py", "COSMOS.SIM", "Stellar formation model ◇ Gravity"),
     ("10_lightning_effect.py", "TESLA.LAB", "Electrical discharge sim ◇ 6 colors"),
     ("11_water_ripples.py", "FLUID.DYN", "Wave interference engine ◇ Physics"),
-    ("12_dna_helix.py", "GENOME.VIZ", "Molecular structure display ◇ Rotation"),
 ]
 
 # Control information for cyberpunk interface
 CONTROL_INFO = {
-    "01_plasma_effect.py": [
-        "▶ ↑↓ PLASMA.SPEED ◇ ←→ PIXEL.SIZE",
-        "▶ [C] COLOR.MODE ◇ [P] PATTERN.MODE",
-        "▶ [H] HIDE.GUI ◇ [ESC] EXIT.SYS"
+    "01_dark_ages_rpg.py": [
+        "▶ ARROW.KEYS NAVIGATE ◇ ENTER CONFIRM",
+        "▶ [I] INVENTORY ◇ [C] CHARACTER.SHEET",
+        "▶ [Q] QUEST.LOG ◇ [S] SAVE.GAME",
+        "▶ [ESC] RETURN.LAUNCHER ◇ [F8] FULLSCREEN"
     ],
     "02_particle_fire.py": [
         "▶ ↑↓ THERMAL.INTENSITY ◇ ←→ WIND.FORCE",
@@ -92,10 +89,20 @@ CONTROL_INFO = {
         "▶ [L] RULE.SET ◇ [V] COLOR.MODE",
         "▶ [P] PATTERN.GEN ◇ [ESC] EXIT.SYS"
     ],
+    "09_spiral_galaxy.py": [
+        "▶ ↑↓ ROTATION.SPEED ◇ ←→ GRAVITY.FORCE",
+        "▶ [C] COLOR.MODE ◇ [G] GALAXY.TYPE",
+        "▶ [S] STELLAR.FORMATION ◇ [ESC] EXIT.SYS"
+    ],
     "10_lightning_effect.py": [
         "▶ ↑↓ STRIKE.FREQ ◇ ←→ BOLT.POWER",
         "▶ [C] ENERGY.COLOR ◇ [B] BOLT.TYPE",
         "▶ [S] STORM.MODE ◇ [ESC] EXIT.SYS"
+    ],
+    "11_water_ripples.py": [
+        "▶ CLICK CREATE.RIPPLES ◇ ↑↓ WAVE.SPEED",
+        "▶ [C] COLOR.MODE ◇ [W] WAVE.TYPE",
+        "▶ [P] PHYSICS.MODE ◇ [ESC] EXIT.SYS"
     ]
 }
 
