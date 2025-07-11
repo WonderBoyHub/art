@@ -60,6 +60,8 @@ class GameState(Enum):
     PALACE = 10
     QUEST_LOG = 11
     SAVE_LOAD = 12
+    SKILL_TREE = 13
+    CRAFTING = 14
 
 class CharacterClass(Enum):
     WARRIOR = "Warrior"
@@ -92,6 +94,114 @@ class Faction(Enum):
     SCHOLARS = "Scholars"
     THIEVES_GUILD = "Thieves Guild"
     KNIGHTS_ORDER = "Knights Order"
+
+class SkillType(Enum):
+    COMBAT = "Combat"
+    MAGIC = "Magic"
+    STEALTH = "Stealth"
+    DIPLOMACY = "Diplomacy"
+    SURVIVAL = "Survival"
+    CRAFTING = "Crafting"
+
+class WeatherType(Enum):
+    CLEAR = "Clear"
+    RAIN = "Rain"
+    STORM = "Storm"
+    SNOW = "Snow"
+    FOG = "Fog"
+
+class CombatAction(Enum):
+    ATTACK = "Attack"
+    DEFEND = "Defend"
+    CAST_SPELL = "Cast Spell"
+    USE_ITEM = "Use Item"
+    FLEE = "Flee"
+
+@dataclass
+class Skill:
+    name: str
+    skill_type: SkillType
+    level: int = 1
+    experience: int = 0
+    experience_needed: int = 100
+    description: str = ""
+    
+    def gain_experience(self, amount: int):
+        self.experience += amount
+        while self.experience >= self.experience_needed:
+            self.level_up()
+    
+    def level_up(self):
+        self.experience -= self.experience_needed
+        self.level += 1
+        self.experience_needed = int(self.experience_needed * 1.3)
+
+@dataclass
+class Enemy:
+    name: str
+    level: int
+    max_health: int
+    current_health: int
+    attack_power: int
+    defense: int
+    experience_reward: int
+    gold_reward: int
+    possible_drops: List[str]
+    
+    def __init__(self, name: str, level: int = 1):
+        self.name = name
+        self.level = level
+        self.max_health = 30 + level * 15
+        self.current_health = self.max_health
+        self.attack_power = 5 + level * 3
+        self.defense = 2 + level * 2
+        self.experience_reward = level * 25
+        self.gold_reward = level * 10 + random.randint(5, 15)
+        self.possible_drops = ["health_potion", "iron_ore", "silver_nugget"]
+
+@dataclass
+class CombatState:
+    player: 'Character'
+    enemy: Enemy
+    player_turn: bool = True
+    turn_count: int = 0
+    combat_log: List[str] = None
+    player_action: Optional[CombatAction] = None
+    player_defending: bool = False
+    
+    def __post_init__(self):
+        if self.combat_log is None:
+            self.combat_log = []
+
+@dataclass
+class WeatherSystem:
+    current_weather: WeatherType = WeatherType.CLEAR
+    temperature: int = 20  # Celsius
+    wind_speed: int = 5    # km/h
+    humidity: int = 50     # percentage
+    time_of_day: float = 0.5  # 0.0 = midnight, 0.5 = noon, 1.0 = midnight
+    season: str = "Spring"
+    
+    def update(self, dt: float):
+        """Update weather and time"""
+        self.time_of_day += dt * 0.001  # Accelerated time
+        if self.time_of_day >= 1.0:
+            self.time_of_day = 0.0
+            self.advance_day()
+    
+    def advance_day(self):
+        """Advance to next day with weather changes"""
+        # Random weather changes
+        if random.random() < 0.3:  # 30% chance of weather change
+            self.current_weather = random.choice(list(WeatherType))
+        
+        # Temperature variation
+        self.temperature += random.randint(-5, 5)
+        self.temperature = max(-10, min(35, self.temperature))
+        
+        # Wind and humidity changes
+        self.wind_speed = max(0, min(50, self.wind_speed + random.randint(-10, 10)))
+        self.humidity = max(20, min(90, self.humidity + random.randint(-15, 15)))
 
 @dataclass
 class Character:
@@ -126,6 +236,9 @@ class Character:
     reputation: Dict[Faction, int] = None
     faith: Dict[Religion, int] = None
     
+    # Skills
+    skills: Dict[SkillType, Skill] = None
+    
     # Equipment
     equipped_weapon: Optional[str] = None
     equipped_armor: Optional[str] = None
@@ -137,11 +250,29 @@ class Character:
     x: int = 240
     y: int = 160
     
+    # Status Effects
+    status_effects: List[str] = None
+    
+    # Combat Stats
+    initiative: int = 10
+    critical_chance: float = 0.05
+    
     def __post_init__(self):
         if self.reputation is None:
             self.reputation = {faction: 0 for faction in Faction}
         if self.faith is None:
             self.faith = {religion: 0 for religion in Religion}
+        if self.skills is None:
+            self.skills = {
+                SkillType.COMBAT: Skill("Swordplay", SkillType.COMBAT, description="Skill with melee weapons"),
+                SkillType.MAGIC: Skill("Arcane Arts", SkillType.MAGIC, description="Knowledge of magical spells"),
+                SkillType.STEALTH: Skill("Stealth", SkillType.STEALTH, description="Moving unseen and unheard"),
+                SkillType.DIPLOMACY: Skill("Diplomacy", SkillType.DIPLOMACY, description="Art of persuasion"),
+                SkillType.SURVIVAL: Skill("Survival", SkillType.SURVIVAL, description="Living off the land"),
+                SkillType.CRAFTING: Skill("Crafting", SkillType.CRAFTING, description="Creating items and tools")
+            }
+        if self.status_effects is None:
+            self.status_effects = []
         
         self.calculate_derived_stats()
     
@@ -183,6 +314,45 @@ class Character:
     def modify_faith(self, religion: Religion, amount: int):
         """Modify faith in a religion"""
         self.faith[religion] = max(-100, min(100, self.faith[religion] + amount))
+    
+    def get_attack_power(self) -> int:
+        """Calculate total attack power including weapon and skills"""
+        base_attack = self.strength + self.skills[SkillType.COMBAT].level * 2
+        weapon_bonus = 0
+        
+        # Add weapon bonus if equipped
+        # This would be calculated elsewhere based on equipped weapon
+        
+        return base_attack + weapon_bonus
+    
+    def get_defense_power(self) -> int:
+        """Calculate total defense including armor and constitution"""
+        base_defense = self.constitution // 2 + self.skills[SkillType.COMBAT].level
+        armor_bonus = 0
+        
+        # Add armor bonus if equipped
+        # This would be calculated elsewhere based on equipped armor
+        
+        return base_defense + armor_bonus
+    
+    def take_damage(self, damage: int) -> int:
+        """Take damage and return actual damage dealt"""
+        actual_damage = max(1, damage - self.get_defense_power() // 2)
+        self.current_health = max(0, self.current_health - actual_damage)
+        return actual_damage
+    
+    def heal(self, amount: int):
+        """Heal the character"""
+        self.current_health = min(self.max_health, self.current_health + amount)
+    
+    def is_alive(self) -> bool:
+        """Check if character is alive"""
+        return self.current_health > 0
+    
+    def gain_skill_experience(self, skill_type: SkillType, amount: int):
+        """Gain experience in a specific skill"""
+        if skill_type in self.skills:
+            self.skills[skill_type].gain_experience(amount)
 
 @dataclass
 class Item:
@@ -393,6 +563,13 @@ class DarkAgesRPG:
         self.active_quests = {}
         self.completed_quests = {}
         
+        # Combat System
+        self.combat_state = None
+        self.available_enemies = self.create_enemy_database()
+        
+        # Weather System
+        self.weather = WeatherSystem()
+        
         # UI State
         self.selected_menu_item = 0
         self.scroll_offset = 0
@@ -420,6 +597,19 @@ class DarkAgesRPG:
         self.character.equipped_weapon = "iron_sword"
         self.character.equipped_armor = "leather_armor"
         self.character.calculate_derived_stats()
+    
+    def create_enemy_database(self) -> Dict[str, Enemy]:
+        """Create database of available enemies"""
+        return {
+            "goblin": Enemy("Goblin", 1),
+            "orc": Enemy("Orc", 2),
+            "skeleton": Enemy("Skeleton", 2),
+            "bandit": Enemy("Bandit", 3),
+            "wolf": Enemy("Wolf", 2),
+            "troll": Enemy("Troll", 5),
+            "dark_knight": Enemy("Dark Knight", 7),
+            "dragon": Enemy("Ancient Dragon", 10)
+        }
     
     def save_game(self, slot: int = 1):
         """Save the game to a file"""
@@ -500,6 +690,117 @@ class DarkAgesRPG:
             # Move to completed quests
             self.completed_quests[quest_id] = quest
             del self.active_quests[quest_id]
+    
+    def start_combat(self, enemy_name: str):
+        """Start combat with an enemy"""
+        if enemy_name in self.available_enemies:
+            enemy = self.available_enemies[enemy_name]
+            # Create a fresh copy of the enemy
+            combat_enemy = Enemy(enemy.name, enemy.level)
+            self.combat_state = CombatState(self.character, combat_enemy)
+            self.game_state = GameState.COMBAT
+            self.combat_state.combat_log.append(f"Combat begins with {enemy.name}!")
+    
+    def process_combat_turn(self, player_action: CombatAction):
+        """Process a turn of combat"""
+        if not self.combat_state:
+            return
+        
+        combat = self.combat_state
+        
+        if combat.player_turn:
+            # Player's turn
+            if player_action == CombatAction.ATTACK:
+                damage = self.character.get_attack_power() + random.randint(1, 6)
+                # Check for critical hit
+                if random.random() < self.character.critical_chance:
+                    damage *= 2
+                    combat.combat_log.append(f"Critical hit!")
+                
+                actual_damage = max(1, damage - combat.enemy.defense)
+                combat.enemy.current_health -= actual_damage
+                combat.combat_log.append(f"You deal {actual_damage} damage to {combat.enemy.name}")
+                
+                # Gain combat experience
+                self.character.gain_skill_experience(SkillType.COMBAT, 5)
+                
+            elif player_action == CombatAction.DEFEND:
+                combat.player_defending = True
+                combat.combat_log.append("You raise your guard defensively")
+                
+            elif player_action == CombatAction.USE_ITEM:
+                # Use healing potion if available
+                if "health_potion" in self.inventory and self.inventory["health_potion"] > 0:
+                    self.use_item("health_potion")
+                    combat.combat_log.append("You drink a health potion")
+                else:
+                    combat.combat_log.append("No usable items available")
+                    
+            elif player_action == CombatAction.FLEE:
+                if random.random() < 0.7:  # 70% chance to flee
+                    combat.combat_log.append("You successfully flee from combat!")
+                    self.end_combat(False)
+                    return
+                else:
+                    combat.combat_log.append("Failed to escape!")
+            
+            combat.player_turn = False
+            
+        else:
+            # Enemy's turn
+            if combat.enemy.current_health > 0:
+                enemy_damage = combat.enemy.attack_power + random.randint(1, 4)
+                
+                if combat.player_defending:
+                    enemy_damage //= 2
+                    combat.player_defending = False
+                
+                actual_damage = self.character.take_damage(enemy_damage)
+                combat.combat_log.append(f"{combat.enemy.name} deals {actual_damage} damage to you")
+            
+            combat.player_turn = True
+            combat.turn_count += 1
+        
+        # Check for combat end conditions
+        if combat.enemy.current_health <= 0:
+            self.win_combat()
+        elif not self.character.is_alive():
+            self.lose_combat()
+    
+    def win_combat(self):
+        """Handle winning combat"""
+        if not self.combat_state:
+            return
+        
+        enemy = self.combat_state.enemy
+        
+        # Gain experience and gold
+        self.character.gain_experience(enemy.experience_reward)
+        self.character.gold += enemy.gold_reward
+        
+        # Random item drops
+        for item_id in enemy.possible_drops:
+            if random.random() < 0.3:  # 30% drop chance
+                if item_id in self.inventory:
+                    self.inventory[item_id] += 1
+                else:
+                    self.inventory[item_id] = 1
+                self.combat_state.combat_log.append(f"You found: {self.game_data.items[item_id].name}")
+        
+        self.combat_state.combat_log.append(f"Victory! Gained {enemy.experience_reward} experience and {enemy.gold_reward} gold")
+        self.end_combat(True)
+    
+    def lose_combat(self):
+        """Handle losing combat"""
+        self.combat_state.combat_log.append("You have been defeated!")
+        # Restore some health and return to safety
+        self.character.current_health = self.character.max_health // 4
+        self.end_combat(False)
+    
+    def end_combat(self, victory: bool):
+        """End combat and return to world map"""
+        self.combat_state = None
+        self.game_state = GameState.WORLD_MAP
     
     def use_item(self, item_id: str):
         """Use a consumable item"""
@@ -925,7 +1226,11 @@ class DarkAgesRPG:
         """Handle input based on current game state"""
         for event in events:
             if event.type == pygame.KEYDOWN:
-                if self.game_state == GameState.MAIN_MENU:
+                if event.key == pygame.K_F8:
+                    toggle_fullscreen()
+                elif event.key == pygame.K_ESCAPE and self.game_state == GameState.MAIN_MENU:
+                    return_to_launcher()
+                elif self.game_state == GameState.MAIN_MENU:
                     self.handle_main_menu_input(event)
                 elif self.game_state == GameState.CHARACTER_CREATION:
                     self.handle_character_creation_input(event)
@@ -937,6 +1242,11 @@ class DarkAgesRPG:
                     self.handle_inventory_input(event)
                 elif self.game_state == GameState.QUEST_LOG:
                     self.handle_quest_log_input(event)
+                elif self.game_state == GameState.COMBAT:
+                    self.handle_combat_input(event)
+                elif self.game_state == GameState.SKILL_TREE:
+                    self.handle_skill_tree_input(event)
+        return True
     
     def handle_main_menu_input(self, event):
         """Handle main menu input"""
@@ -982,6 +1292,14 @@ class DarkAgesRPG:
             self.game_state = GameState.CHARACTER_SHEET
         elif event.key == pygame.K_q:
             self.game_state = GameState.QUEST_LOG
+        elif event.key == pygame.K_k:
+            self.game_state = GameState.SKILL_TREE
+            self.selected_menu_item = 0
+        elif event.key == pygame.K_f:
+            # Start random combat encounter
+            enemy_names = list(self.available_enemies.keys())
+            random_enemy = random.choice(enemy_names)
+            self.start_combat(random_enemy)
         elif event.key == pygame.K_s:
             self.save_game()
     
@@ -1013,6 +1331,48 @@ class DarkAgesRPG:
         """Handle quest log input"""
         if event.key == pygame.K_ESCAPE:
             self.game_state = GameState.WORLD_MAP
+    
+    def handle_combat_input(self, event):
+        """Handle combat input"""
+        if not self.combat_state:
+            return
+            
+        if event.key == pygame.K_ESCAPE:
+            # Try to flee combat
+            self.process_combat_turn(CombatAction.FLEE)
+        elif self.combat_state.player_turn:
+            if event.key == pygame.K_1:
+                self.process_combat_turn(CombatAction.ATTACK)
+            elif event.key == pygame.K_2:
+                self.process_combat_turn(CombatAction.DEFEND)
+            elif event.key == pygame.K_3:
+                self.process_combat_turn(CombatAction.USE_ITEM)
+            elif event.key == pygame.K_4:
+                self.process_combat_turn(CombatAction.FLEE)
+            elif event.key == pygame.K_UP:
+                self.selected_menu_item = max(0, self.selected_menu_item - 1)
+            elif event.key == pygame.K_DOWN:
+                self.selected_menu_item = min(3, self.selected_menu_item + 1)
+            elif event.key == pygame.K_RETURN:
+                actions = [CombatAction.ATTACK, CombatAction.DEFEND, CombatAction.USE_ITEM, CombatAction.FLEE]
+                if 0 <= self.selected_menu_item < len(actions):
+                    self.process_combat_turn(actions[self.selected_menu_item])
+    
+    def handle_skill_tree_input(self, event):
+        """Handle skill tree input"""
+        if event.key == pygame.K_ESCAPE:
+            self.game_state = GameState.WORLD_MAP
+        elif event.key == pygame.K_UP:
+            self.selected_menu_item = max(0, self.selected_menu_item - 1)
+        elif event.key == pygame.K_DOWN:
+            self.selected_menu_item = min(len(self.character.skills) - 1, self.selected_menu_item + 1)
+        elif event.key == pygame.K_RETURN:
+            if self.character.skill_points > 0:
+                skill_types = list(self.character.skills.keys())
+                if 0 <= self.selected_menu_item < len(skill_types):
+                    skill_type = skill_types[self.selected_menu_item]
+                    self.character.skills[skill_type].level += 1
+                    self.character.skill_points -= 1
     
     def apply_class_bonuses(self):
         """Apply class-specific stat bonuses"""
@@ -1052,10 +1412,153 @@ class DarkAgesRPG:
         """Update game logic"""
         self.game_time += dt
         
+        # Update weather system
+        self.weather.update(dt)
+        
         # Update day/night cycle
         if self.game_time > 86400:  # 24 hours in seconds (scaled)
             self.day += 1
             self.game_time = 0
+    
+    def draw_combat(self, surface):
+        """Draw combat interface"""
+        surface.fill(DARK_BACKGROUND)
+        
+        if not self.combat_state:
+            return
+        
+        combat = self.combat_state
+        
+        # Combat arena background
+        arena_rect = pygame.Rect(10, 10, WIDTH - 20, 180)
+        self.draw_panel(surface, arena_rect, "COMBAT ARENA")
+        
+        # Player status (left side)
+        player_rect = pygame.Rect(20, 40, 200, 100)
+        self.draw_panel(surface, player_rect, f"{self.character.name} (Level {self.character.level})")
+        
+        # Player health bar
+        health_bar = pygame.Rect(30, 65, 180, 15)
+        self.draw_bar(surface, health_bar.x, health_bar.y, health_bar.width, health_bar.height,
+                     self.character.current_health, self.character.max_health, HEALTH_RED)
+        
+        health_text = f"HP: {self.character.current_health}/{self.character.max_health}"
+        text = self.font_small.render(health_text, True, TEXT_WHITE)
+        surface.blit(text, (30, 85))
+        
+        # Player mana bar
+        mana_bar = pygame.Rect(30, 105, 180, 15)
+        self.draw_bar(surface, mana_bar.x, mana_bar.y, mana_bar.width, mana_bar.height,
+                     self.character.current_mana, self.character.max_mana, MANA_BLUE)
+        
+        mana_text = f"MP: {self.character.current_mana}/{self.character.max_mana}"
+        text = self.font_small.render(mana_text, True, TEXT_WHITE)
+        surface.blit(text, (30, 125))
+        
+        # Enemy status (right side)
+        enemy_rect = pygame.Rect(250, 40, 200, 100)
+        self.draw_panel(surface, enemy_rect, f"{combat.enemy.name} (Level {combat.enemy.level})")
+        
+        # Enemy health bar
+        enemy_health_bar = pygame.Rect(260, 65, 180, 15)
+        self.draw_bar(surface, enemy_health_bar.x, enemy_health_bar.y, enemy_health_bar.width, enemy_health_bar.height,
+                     combat.enemy.current_health, combat.enemy.max_health, HEALTH_RED)
+        
+        enemy_health_text = f"HP: {combat.enemy.current_health}/{combat.enemy.max_health}"
+        text = self.font_small.render(enemy_health_text, True, TEXT_WHITE)
+        surface.blit(text, (260, 85))
+        
+        # Combat actions panel
+        actions_rect = pygame.Rect(10, 200, 300, 110)
+        self.draw_panel(surface, actions_rect, "COMBAT ACTIONS")
+        
+        if combat.player_turn:
+            # Show action buttons
+            actions = [
+                (CombatAction.ATTACK, "Attack"),
+                (CombatAction.DEFEND, "Defend"),
+                (CombatAction.USE_ITEM, "Use Item"),
+                (CombatAction.FLEE, "Flee")
+            ]
+            
+            for i, (action, name) in enumerate(actions):
+                color = TEXT_YELLOW if i == self.selected_menu_item else TEXT_WHITE
+                text = self.font_medium.render(f"{i+1}. {name}", True, color)
+                surface.blit(text, (20, 225 + i * 20))
+        else:
+            # Enemy turn indicator
+            text = self.font_medium.render("Enemy Turn...", True, TEXT_RED)
+            surface.blit(text, (20, 250))
+        
+        # Combat log panel
+        log_rect = pygame.Rect(320, 200, 150, 110)
+        self.draw_panel(surface, log_rect, "COMBAT LOG")
+        
+        # Show last few combat log entries
+        log_entries = combat.combat_log[-6:]  # Last 6 entries
+        for i, entry in enumerate(log_entries):
+            text = self.font_small.render(entry[:20] + ("..." if len(entry) > 20 else ""), True, TEXT_WHITE)
+            surface.blit(text, (325, 220 + i * 12))
+        
+        # Instructions
+        instructions_text = self.font_small.render("1-4: Select Action | ESC: Flee", True, TEXT_BLUE)
+        surface.blit(instructions_text, (20, HEIGHT - 20))
+    
+    def draw_skill_tree(self, surface):
+        """Draw skill tree interface"""
+        surface.fill(DARK_BACKGROUND)
+        
+        # Title
+        title_text = self.font_large.render("SKILL TREE", True, TEXT_YELLOW)
+        surface.blit(title_text, (20, 20))
+        
+        # Available skill points
+        points_text = self.font_medium.render(f"Available Skill Points: {self.character.skill_points}", True, TEXT_GREEN)
+        surface.blit(points_text, (20, 50))
+        
+        # Skills grid
+        y_offset = 80
+        for skill_type, skill in self.character.skills.items():
+            # Skill panel
+            skill_rect = pygame.Rect(20, y_offset, 440, 35)
+            self.draw_panel(surface, skill_rect, "")
+            
+            # Skill name and level
+            skill_text = f"{skill.name} - Level {skill.level}"
+            text = self.font_medium.render(skill_text, True, TEXT_WHITE)
+            surface.blit(text, (30, y_offset + 5))
+            
+            # Experience bar
+            exp_bar = pygame.Rect(250, y_offset + 5, 150, 10)
+            self.draw_bar(surface, exp_bar.x, exp_bar.y, exp_bar.width, exp_bar.height,
+                         skill.experience, skill.experience_needed, EXP_GREEN)
+            
+            # Upgrade button
+            if self.character.skill_points > 0:
+                upgrade_text = "[+]"
+                color = TEXT_YELLOW if y_offset // 35 == self.selected_menu_item else TEXT_WHITE
+                text = self.font_medium.render(upgrade_text, True, color)
+                surface.blit(text, (410, y_offset + 5))
+            
+            y_offset += 40
+        
+        # Instructions
+        instructions_text = self.font_small.render("Arrow keys: Navigate | Enter: Upgrade | ESC: Back", True, TEXT_BLUE)
+        surface.blit(instructions_text, (20, HEIGHT - 20))
+    
+    def draw_weather_hud(self, surface):
+        """Draw weather information on HUD"""
+        weather_text = f"Weather: {self.weather.current_weather.value}"
+        text = self.font_small.render(weather_text, True, TEXT_WHITE)
+        surface.blit(text, (350, 10))
+        
+        time_text = f"Time: {int(self.weather.time_of_day * 24):02d}:00"
+        text = self.font_small.render(time_text, True, TEXT_WHITE)
+        surface.blit(text, (350, 25))
+        
+        temp_text = f"Temp: {self.weather.temperature}°C"
+        text = self.font_small.render(temp_text, True, TEXT_WHITE)
+        surface.blit(text, (350, 40))
     
     def draw(self, surface):
         """Draw the current game state"""
@@ -1065,12 +1568,17 @@ class DarkAgesRPG:
             self.draw_character_creation(surface)
         elif self.game_state == GameState.WORLD_MAP:
             self.draw_world_map(surface)
+            self.draw_weather_hud(surface)
         elif self.game_state == GameState.CHARACTER_SHEET:
             self.draw_character_sheet(surface)
         elif self.game_state == GameState.INVENTORY:
             self.draw_inventory(surface)
         elif self.game_state == GameState.QUEST_LOG:
             self.draw_quest_log(surface)
+        elif self.game_state == GameState.COMBAT:
+            self.draw_combat(surface)
+        elif self.game_state == GameState.SKILL_TREE:
+            self.draw_skill_tree(surface)
 
 def toggle_fullscreen():
     """Toggle fullscreen mode using F8"""

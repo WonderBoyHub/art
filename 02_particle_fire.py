@@ -286,51 +286,503 @@ class FireSpreadManager:
             grid[y][x].state = FireState.IGNITION
             grid[y][x].temperature += 100
 
-class WeatherSystem:
-    """Manages environmental conditions"""
-    def __init__(self):
-        self.wind_speed = 0.0
-        self.wind_direction = 0.0
-        self.humidity = 50.0
-        self.temperature = 20.0
-        self.pressure = 1013.25
-        self.precipitation = 0.0
-        
-    def update(self, dt: float):
-        """Update weather conditions"""
-        # Random weather changes
-        if random.random() < 0.01:
-            self.wind_speed += random.uniform(-0.5, 0.5)
-            self.wind_speed = max(0, min(10, self.wind_speed))
-            
-            self.wind_direction += random.uniform(-0.2, 0.2)
-            self.wind_direction = self.wind_direction % (2 * math.pi)
-            
-            self.humidity += random.uniform(-2, 2)
-            self.humidity = max(0, min(100, self.humidity))
-            
-            self.temperature += random.uniform(-1, 1)
-            self.temperature = max(-20, min(50, self.temperature))
+class WeatherType(Enum):
+    CLEAR = 0
+    RAIN = 1
+    SNOW = 2
+    STORM = 3
+    DROUGHT = 4
+    HEATWAVE = 5
+
+class FireScenario(Enum):
+    WILDFIRE = 0
+    HOUSE_FIRE = 1
+    INDUSTRIAL = 2
+    VEHICLE_FIRE = 3
+    ELECTRICAL = 4
+    CHEMICAL = 5
+
+class HeatTransferMode(Enum):
+    CONDUCTION = 0
+    CONVECTION = 1
+    RADIATION = 2
+
+@dataclass
+class WeatherConditions:
+    """Advanced weather conditions"""
+    weather_type: WeatherType
+    temperature: float
+    humidity: float
+    wind_speed: float
+    wind_direction: float
+    precipitation: float
+    visibility: float
+    uv_index: float
     
-    def apply_to_grid(self, grid: List[List[FireCell]]):
-        """Apply weather effects to grid"""
-        wind_x = self.wind_speed * math.cos(self.wind_direction)
-        wind_y = self.wind_speed * math.sin(self.wind_direction)
+    def get_fire_risk(self) -> float:
+        """Calculate fire risk based on weather conditions"""
+        risk = 0.0
         
+        # Temperature effect
+        if self.temperature > 30:
+            risk += (self.temperature - 30) * 0.02
+        
+        # Humidity effect (lower humidity = higher risk)
+        risk += (100 - self.humidity) * 0.01
+        
+        # Wind effect
+        risk += self.wind_speed * 0.1
+        
+        # Precipitation reduces risk
+        risk -= self.precipitation * 0.5
+        
+        # Weather type modifiers
+        if self.weather_type == WeatherType.DROUGHT:
+            risk *= 2.0
+        elif self.weather_type == WeatherType.HEATWAVE:
+            risk *= 1.5
+        elif self.weather_type == WeatherType.RAIN:
+            risk *= 0.3
+        elif self.weather_type == WeatherType.STORM:
+            risk *= 0.1
+        
+        return max(0.0, min(1.0, risk))
+
+class SmokeParticle:
+    """Individual smoke particle for realistic smoke simulation"""
+    def __init__(self, x: float, y: float):
+        self.x = x
+        self.y = y
+        self.velocity_x = random.uniform(-0.5, 0.5)
+        self.velocity_y = random.uniform(-2.0, -0.5)
+        self.life = 1.0
+        self.size = random.uniform(1.0, 3.0)
+        self.density = random.uniform(0.5, 1.0)
+        self.temperature = random.uniform(100, 300)
+    
+    def update(self, dt: float, wind_x: float, wind_y: float):
+        """Update smoke particle"""
+        # Apply wind
+        self.velocity_x += wind_x * 0.1
+        self.velocity_y += wind_y * 0.1
+        
+        # Apply buoyancy (hot air rises)
+        buoyancy = (self.temperature - 20) * 0.001
+        self.velocity_y -= buoyancy
+        
+        # Update position
+        self.x += self.velocity_x * dt * 60
+        self.y += self.velocity_y * dt * 60
+        
+        # Age particle
+        self.life -= dt * 0.5
+        
+        # Cool down
+        self.temperature = max(20, self.temperature - dt * 50)
+        
+        # Expand as it cools
+        self.size += dt * 0.5
+        
+        # Fade as it ages
+        self.density *= 0.995
+    
+    def is_alive(self) -> bool:
+        return self.life > 0 and self.density > 0.1
+
+class FlameParticle:
+    """Individual flame particle for realistic fire visualization"""
+    def __init__(self, x: float, y: float, intensity: float):
+        self.x = x
+        self.y = y
+        self.velocity_x = random.uniform(-0.2, 0.2)
+        self.velocity_y = random.uniform(-1.0, -0.2)
+        self.life = 1.0
+        self.size = random.uniform(0.5, 2.0)
+        self.intensity = intensity
+        self.temperature = random.uniform(600, 1200)
+    
+    def update(self, dt: float, wind_x: float, wind_y: float):
+        """Update flame particle"""
+        # Apply wind
+        self.velocity_x += wind_x * 0.05
+        self.velocity_y += wind_y * 0.05
+        
+        # Natural flame motion (upward)
+        self.velocity_y -= 0.5 * dt
+        
+        # Random flickering
+        self.velocity_x += random.uniform(-0.1, 0.1)
+        self.velocity_y += random.uniform(-0.1, 0.1)
+        
+        # Update position
+        self.x += self.velocity_x * dt * 60
+        self.y += self.velocity_y * dt * 60
+        
+        # Age particle
+        self.life -= dt * 2.0
+        
+        # Cool down
+        self.temperature = max(300, self.temperature - dt * 200)
+        
+        # Shrink as it ages
+        self.size *= 0.99
+    
+    def is_alive(self) -> bool:
+        return self.life > 0 and self.size > 0.1
+    
+    def get_color(self) -> Tuple[int, int, int]:
+        """Get color based on temperature"""
+        if self.temperature > 1000:
+            return (255, 255, 255)  # White hot
+        elif self.temperature > 800:
+            return (255, 255, 100)  # Yellow
+        elif self.temperature > 600:
+            return (255, 150, 50)   # Orange
+        else:
+            return (255, 50, 50)    # Red
+
+class EmberParticle:
+    """Flying ember particles that can spread fire"""
+    def __init__(self, x: float, y: float):
+        self.x = x
+        self.y = y
+        self.velocity_x = random.uniform(-2.0, 2.0)
+        self.velocity_y = random.uniform(-3.0, -1.0)
+        self.life = random.uniform(5.0, 15.0)
+        self.size = random.uniform(0.5, 2.0)
+        self.temperature = random.uniform(500, 800)
+        self.ignition_potential = 0.3
+    
+    def update(self, dt: float, wind_x: float, wind_y: float):
+        """Update ember particle"""
+        # Apply wind (embers are strongly affected by wind)
+        self.velocity_x += wind_x * 0.2
+        self.velocity_y += wind_y * 0.2
+        
+        # Gravity
+        self.velocity_y += 0.5 * dt
+        
+        # Update position
+        self.x += self.velocity_x * dt * 60
+        self.y += self.velocity_y * dt * 60
+        
+        # Age particle
+        self.life -= dt
+        
+        # Cool down
+        self.temperature = max(100, self.temperature - dt * 50)
+        
+        # Reduce ignition potential as it cools
+        self.ignition_potential = max(0, self.ignition_potential - dt * 0.05)
+    
+    def is_alive(self) -> bool:
+        return self.life > 0 and self.temperature > 200
+    
+    def can_ignite(self) -> bool:
+        return self.ignition_potential > 0.1 and self.temperature > 400
+
+class AdvancedPhysicsEngine:
+    """Advanced physics for heat transfer and fluid dynamics"""
+    def __init__(self, grid_width: int, grid_height: int):
+        self.grid_width = grid_width
+        self.grid_height = grid_height
+        self.convection_strength = 0.1
+        self.radiation_constant = 5.67e-8  # Stefan-Boltzmann constant (simplified)
+        
+    def calculate_heat_transfer(self, grid: List[List[FireCell]], dt: float):
+        """Calculate heat transfer through conduction, convection, and radiation"""
+        # Create temporary arrays for heat transfer
+        new_temperatures = [[cell.temperature for cell in row] for row in grid]
+        
+        for y in range(self.grid_height):
+            for x in range(self.grid_width):
+                cell = grid[y][x]
+                
+                # Conduction - heat transfer to adjacent cells
+                conduction_heat = 0.0
+                neighbors = 0
+                
+                for dy in range(-1, 2):
+                    for dx in range(-1, 2):
+                        if dx == 0 and dy == 0:
+                            continue
+                        
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < self.grid_width and 0 <= ny < self.grid_height:
+                            neighbor = grid[ny][nx]
+                            temp_diff = neighbor.temperature - cell.temperature
+                            conduction_heat += temp_diff * 0.01
+                            neighbors += 1
+                
+                if neighbors > 0:
+                    conduction_heat /= neighbors
+                
+                # Convection - hot air rises
+                convection_heat = 0.0
+                if cell.temperature > 100:  # Hot enough for convection
+                    # Heat rises to cell above
+                    if y > 0:
+                        above_cell = grid[y-1][x]
+                        if above_cell.temperature < cell.temperature:
+                            convection_heat = -(cell.temperature - above_cell.temperature) * self.convection_strength
+                    
+                    # Cool air sinks to cell below
+                    if y < self.grid_height - 1:
+                        below_cell = grid[y+1][x]
+                        if below_cell.temperature > cell.temperature:
+                            convection_heat += (below_cell.temperature - cell.temperature) * self.convection_strength * 0.5
+                
+                # Radiation - heat loss to environment
+                radiation_heat = 0.0
+                if cell.temperature > 20:
+                    # Simplified radiation cooling
+                    radiation_heat = -(cell.temperature - 20) * 0.001
+                
+                # Apply heat transfer
+                total_heat_change = (conduction_heat + convection_heat + radiation_heat) * dt
+                new_temperatures[y][x] = max(20, cell.temperature + total_heat_change)
+        
+        # Apply new temperatures
+        for y in range(self.grid_height):
+            for x in range(self.grid_width):
+                grid[y][x].temperature = new_temperatures[y][x]
+
+class FireDamageCalculator:
+    """Calculate fire damage to structures and environment"""
+    def __init__(self):
+        self.damage_threshold = 300  # Temperature at which damage begins
+        self.total_damage = 0.0
+        self.structure_health = {}
+        
+    def calculate_damage(self, grid: List[List[FireCell]], dt: float):
+        """Calculate damage from fire"""
+        damage_this_frame = 0.0
+        
+        for y in range(len(grid)):
+            for x in range(len(grid[0])):
+                cell = grid[y][x]
+                
+                if cell.temperature > self.damage_threshold:
+                    # Calculate damage based on temperature and time
+                    damage_rate = (cell.temperature - self.damage_threshold) * 0.01
+                    damage = damage_rate * dt
+                    damage_this_frame += damage
+                    
+                    # Track structure damage
+                    pos_key = f"{x},{y}"
+                    if pos_key not in self.structure_health:
+                        self.structure_health[pos_key] = 100.0
+                    
+                    self.structure_health[pos_key] = max(0, self.structure_health[pos_key] - damage)
+        
+        self.total_damage += damage_this_frame
+        return damage_this_frame
+    
+    def get_damage_report(self) -> Dict[str, float]:
+        """Get comprehensive damage report"""
+        destroyed_structures = sum(1 for health in self.structure_health.values() if health <= 0)
+        damaged_structures = sum(1 for health in self.structure_health.values() if 0 < health < 100)
+        
+        return {
+            'total_damage': self.total_damage,
+            'destroyed_structures': destroyed_structures,
+            'damaged_structures': damaged_structures,
+            'economic_loss': self.total_damage * 1000  # Simplified economic calculation
+        }
+
+class FireScenarioManager:
+    """Manages different fire scenarios"""
+    def __init__(self):
+        self.current_scenario = FireScenario.WILDFIRE
+        self.scenario_time = 0.0
+        self.objectives = []
+        self.completed_objectives = []
+        
+    def setup_scenario(self, scenario: FireScenario, grid: List[List[FireCell]]):
+        """Setup a specific fire scenario"""
+        self.current_scenario = scenario
+        self.scenario_time = 0.0
+        self.objectives = []
+        self.completed_objectives = []
+        
+        # Clear grid
         for row in grid:
             for cell in row:
-                cell.wind_velocity_x = wind_x
-                cell.wind_velocity_y = wind_y
-                cell.humidity = self.humidity
-                
-                # Temperature effect
-                if cell.state == FireState.COLD:
-                    cell.temperature = self.temperature
-                
-                # Precipitation effect
-                if self.precipitation > 0:
-                    cell.water_amount += self.precipitation * 0.1
-                    cell.contains_water = True
+                cell.fuel_amount = 0.0
+                cell.state = FireState.COLD
+                cell.temperature = 20.0
+                cell.contains_water = False
+        
+        if scenario == FireScenario.WILDFIRE:
+            self.setup_wildfire_scenario(grid)
+        elif scenario == FireScenario.HOUSE_FIRE:
+            self.setup_house_fire_scenario(grid)
+        elif scenario == FireScenario.INDUSTRIAL:
+            self.setup_industrial_scenario(grid)
+        elif scenario == FireScenario.VEHICLE_FIRE:
+            self.setup_vehicle_fire_scenario(grid)
+        elif scenario == FireScenario.ELECTRICAL:
+            self.setup_electrical_scenario(grid)
+        elif scenario == FireScenario.CHEMICAL:
+            self.setup_chemical_scenario(grid)
+    
+    def setup_wildfire_scenario(self, grid: List[List[FireCell]]):
+        """Setup wildfire scenario"""
+        # Create forest with varying fuel loads
+        for y in range(len(grid)):
+            for x in range(len(grid[0])):
+                if random.random() < 0.8:  # 80% forest coverage
+                    grid[y][x].fuel_amount = random.uniform(20, 100)
+                    grid[y][x].fuel_type = FuelType.WOOD
+                    grid[y][x].humidity = random.uniform(30, 70)
+        
+        # Create fire breaks (roads, rivers)
+        for x in range(len(grid[0])):
+            if len(grid) > 20:  # Create horizontal firebreak
+                grid[len(grid)//2][x].fuel_amount = 0
+                grid[len(grid)//2][x].contains_water = True
+        
+        # Start fire in one corner
+        grid[0][0].state = FireState.BURNING
+        grid[0][0].temperature = 800
+        
+        self.objectives = [
+            "Contain the fire within 500 units",
+            "Protect the firebreak",
+            "Minimize burned area",
+            "Prevent fire from reaching the bottom edge"
+        ]
+    
+    def setup_house_fire_scenario(self, grid: List[List[FireCell]]):
+        """Setup house fire scenario"""
+        # Create house structure
+        house_x, house_y = len(grid[0])//2, len(grid)//2
+        
+        # Walls and rooms
+        for x in range(house_x - 10, house_x + 10):
+            for y in range(house_y - 8, house_y + 8):
+                if 0 <= x < len(grid[0]) and 0 <= y < len(grid):
+                    grid[y][x].fuel_amount = 60.0
+                    grid[y][x].fuel_type = FuelType.WOOD
+        
+        # Kitchen (higher fuel load)
+        for x in range(house_x - 5, house_x):
+            for y in range(house_y - 4, house_y):
+                if 0 <= x < len(grid[0]) and 0 <= y < len(grid):
+                    grid[y][x].fuel_amount = 80.0
+                    grid[y][x].fuel_type = FuelType.OIL
+        
+        # Start fire in kitchen
+        grid[house_y - 2][house_x - 2].state = FireState.BURNING
+        grid[house_y - 2][house_x - 2].temperature = 600
+        
+        self.objectives = [
+            "Contain fire to kitchen",
+            "Protect escape routes",
+            "Minimize smoke damage",
+            "Extinguish fire in under 10 minutes"
+        ]
+    
+    def setup_industrial_scenario(self, grid: List[List[FireCell]]):
+        """Setup industrial fire scenario"""
+        # Chemical storage area
+        for x in range(10, 30):
+            for y in range(10, 30):
+                if x < len(grid[0]) and y < len(grid):
+                    grid[y][x].fuel_amount = 100.0
+                    grid[y][x].fuel_type = random.choice([FuelType.OIL, FuelType.GASOLINE, FuelType.ALCOHOL])
+        
+        # Start fire
+        grid[15][15].state = FireState.BURNING
+        grid[15][15].temperature = 800
+        
+        self.objectives = [
+            "Prevent chemical explosion",
+            "Contain hazardous material spread",
+            "Minimize environmental damage",
+            "Evacuate danger zone"
+        ]
+    
+    def setup_vehicle_fire_scenario(self, grid: List[List[FireCell]]):
+        """Setup vehicle fire scenario"""
+        # Vehicle fuel
+        for x in range(len(grid[0])//2 - 3, len(grid[0])//2 + 3):
+            for y in range(len(grid)//2 - 2, len(grid)//2 + 2):
+                if 0 <= x < len(grid[0]) and 0 <= y < len(grid):
+                    grid[y][x].fuel_amount = 80.0
+                    grid[y][x].fuel_type = FuelType.GASOLINE
+        
+        # Start fire
+        grid[len(grid)//2][len(grid[0])//2].state = FireState.BURNING
+        grid[len(grid)//2][len(grid[0])//2].temperature = 700
+        
+        self.objectives = [
+            "Extinguish fire quickly",
+            "Prevent fuel tank explosion",
+            "Protect nearby vehicles",
+            "Clear evacuation routes"
+        ]
+    
+    def setup_electrical_scenario(self, grid: List[List[FireCell]]):
+        """Setup electrical fire scenario"""
+        # Electrical components
+        for x in range(len(grid[0])//2 - 5, len(grid[0])//2 + 5):
+            for y in range(len(grid)//2 - 5, len(grid)//2 + 5):
+                if 0 <= x < len(grid[0]) and 0 <= y < len(grid):
+                    grid[y][x].fuel_amount = 40.0
+                    grid[y][x].fuel_type = FuelType.PAPER  # Insulation
+        
+        # Start electrical fire
+        grid[len(grid)//2][len(grid[0])//2].state = FireState.BURNING
+        grid[len(grid)//2][len(grid[0])//2].temperature = 500
+        
+        self.objectives = [
+            "Cut power supply",
+            "Use appropriate extinguishing agent",
+            "Prevent electrical shock",
+            "Contain fire to electrical room"
+        ]
+    
+    def setup_chemical_scenario(self, grid: List[List[FireCell]]):
+        """Setup chemical fire scenario"""
+        # Different chemicals
+        chemicals = [FuelType.ALCOHOL, FuelType.OIL, FuelType.GASOLINE]
+        
+        for i, chemical in enumerate(chemicals):
+            x_start = i * (len(grid[0]) // 3)
+            for x in range(x_start, x_start + len(grid[0]) // 3):
+                for y in range(len(grid)//2 - 5, len(grid)//2 + 5):
+                    if 0 <= x < len(grid[0]) and 0 <= y < len(grid):
+                        grid[y][x].fuel_amount = 70.0
+                        grid[y][x].fuel_type = chemical
+        
+        # Start fire in middle
+        grid[len(grid)//2][len(grid[0])//2].state = FireState.BURNING
+        grid[len(grid)//2][len(grid[0])//2].temperature = 600
+        
+        self.objectives = [
+            "Identify chemical types",
+            "Use appropriate suppression method",
+            "Prevent chemical mixing",
+            "Minimize toxic smoke"
+        ]
+    
+    def update_scenario(self, dt: float):
+        """Update scenario progress"""
+        self.scenario_time += dt
+        
+        # Check objective completion
+        # This would be implemented based on specific conditions
+        
+    def get_scenario_status(self) -> Dict[str, any]:
+        """Get current scenario status"""
+        return {
+            'scenario': self.current_scenario.name,
+            'time': self.scenario_time,
+            'objectives': self.objectives,
+            'completed': self.completed_objectives,
+            'progress': len(self.completed_objectives) / len(self.objectives) if self.objectives else 0
+        }
 
 class FirefightingTools:
     """Tools for fighting fires"""
@@ -365,8 +817,143 @@ class FirefightingTools:
         self.foam_remaining = self.foam_capacity
         self.fire_retardant = 30.0
 
+class WeatherSystem:
+    """Advanced weather management system"""
+    def __init__(self):
+        self.conditions = WeatherConditions(
+            weather_type=WeatherType.CLEAR,
+            temperature=20.0,
+            humidity=50.0,
+            wind_speed=2.0,
+            wind_direction=0.0,
+            precipitation=0.0,
+            visibility=10.0,
+            uv_index=5.0
+        )
+        self.time_of_day = 0.5  # 0.0 = midnight, 0.5 = noon
+        self.season = "Summer"
+        
+    def update(self, dt: float):
+        """Update weather conditions"""
+        # Time progression
+        self.time_of_day += dt * 0.001  # Accelerated time
+        if self.time_of_day >= 1.0:
+            self.time_of_day = 0.0
+            self.advance_day()
+        
+        # Random weather changes
+        if random.random() < 0.005:  # 0.5% chance per frame
+            self.change_weather()
+        
+        # Gradual parameter changes
+        self.conditions.wind_speed += random.uniform(-0.1, 0.1)
+        self.conditions.wind_speed = max(0, min(15, self.conditions.wind_speed))
+        
+        self.conditions.wind_direction += random.uniform(-0.05, 0.05)
+        self.conditions.wind_direction = self.conditions.wind_direction % (2 * math.pi)
+        
+        # Temperature varies with time of day
+        base_temp = 20.0
+        temp_variation = 10.0 * math.sin(self.time_of_day * 2 * math.pi)
+        self.conditions.temperature = base_temp + temp_variation
+        
+        # Humidity varies with precipitation
+        if self.conditions.precipitation > 0:
+            self.conditions.humidity = min(100, self.conditions.humidity + 2)
+        else:
+            self.conditions.humidity += random.uniform(-1, 1)
+            self.conditions.humidity = max(10, min(90, self.conditions.humidity))
+    
+    def advance_day(self):
+        """Advance to next day"""
+        # Seasonal changes could be implemented here
+        pass
+    
+    def change_weather(self):
+        """Change weather type"""
+        current_type = self.conditions.weather_type
+        
+        # Weather transition probabilities
+        if current_type == WeatherType.CLEAR:
+            new_type = random.choice([WeatherType.RAIN, WeatherType.STORM, WeatherType.DROUGHT])
+        elif current_type == WeatherType.RAIN:
+            new_type = random.choice([WeatherType.CLEAR, WeatherType.STORM, WeatherType.SNOW])
+        elif current_type == WeatherType.STORM:
+            new_type = random.choice([WeatherType.RAIN, WeatherType.CLEAR])
+        elif current_type == WeatherType.SNOW:
+            new_type = random.choice([WeatherType.CLEAR, WeatherType.STORM])
+        elif current_type == WeatherType.DROUGHT:
+            new_type = random.choice([WeatherType.CLEAR, WeatherType.HEATWAVE])
+        else:  # HEATWAVE
+            new_type = random.choice([WeatherType.CLEAR, WeatherType.DROUGHT])
+        
+        self.conditions.weather_type = new_type
+        
+        # Adjust parameters based on weather type
+        if new_type == WeatherType.RAIN:
+            self.conditions.precipitation = random.uniform(2, 8)
+            self.conditions.visibility = random.uniform(3, 7)
+        elif new_type == WeatherType.STORM:
+            self.conditions.precipitation = random.uniform(5, 15)
+            self.conditions.wind_speed = random.uniform(8, 15)
+            self.conditions.visibility = random.uniform(1, 4)
+        elif new_type == WeatherType.SNOW:
+            self.conditions.precipitation = random.uniform(1, 5)
+            self.conditions.temperature = random.uniform(-10, 5)
+            self.conditions.visibility = random.uniform(2, 6)
+        elif new_type == WeatherType.DROUGHT:
+            self.conditions.precipitation = 0
+            self.conditions.humidity = random.uniform(10, 30)
+            self.conditions.temperature += random.uniform(5, 15)
+        elif new_type == WeatherType.HEATWAVE:
+            self.conditions.precipitation = 0
+            self.conditions.humidity = random.uniform(20, 40)
+            self.conditions.temperature = random.uniform(35, 45)
+        else:  # CLEAR
+            self.conditions.precipitation = 0
+            self.conditions.visibility = 10.0
+    
+    def apply_to_grid(self, grid: List[List[FireCell]]):
+        """Apply weather effects to grid"""
+        wind_x = self.conditions.wind_speed * math.cos(self.conditions.wind_direction)
+        wind_y = self.conditions.wind_speed * math.sin(self.conditions.wind_direction)
+        
+        for row in grid:
+            for cell in row:
+                cell.wind_velocity_x = wind_x
+                cell.wind_velocity_y = wind_y
+                cell.humidity = self.conditions.humidity
+                
+                # Temperature effect
+                if cell.state == FireState.COLD:
+                    cell.temperature = self.conditions.temperature
+                
+                # Precipitation effect
+                if self.conditions.precipitation > 0:
+                    cell.water_amount += self.conditions.precipitation * 0.02
+                    cell.contains_water = True
+                    
+                    # Snow provides additional cooling
+                    if self.conditions.weather_type == WeatherType.SNOW:
+                        cell.temperature -= 5
+    
+    def get_fire_danger_rating(self) -> str:
+        """Get fire danger rating"""
+        risk = self.conditions.get_fire_risk()
+        
+        if risk < 0.2:
+            return "LOW"
+        elif risk < 0.4:
+            return "MODERATE"
+        elif risk < 0.6:
+            return "HIGH"
+        elif risk < 0.8:
+            return "VERY HIGH"
+        else:
+            return "EXTREME"
+
 class FireCombustionSimulator:
-    """Main fire simulation class"""
+    """Main fire simulation class with advanced physics and scenarios"""
     def __init__(self):
         self.grid_size = 4
         self.grid_width = WIDTH // self.grid_size
@@ -376,28 +963,49 @@ class FireCombustionSimulator:
         self.grid = [[FireCell(x, y) for x in range(self.grid_width)] 
                      for y in range(self.grid_height)]
         
-        # Systems
+        # Advanced systems
         self.fire_spread = FireSpreadManager(self.grid_width, self.grid_height)
         self.weather = WeatherSystem()
         self.firefighting = FirefightingTools()
+        self.physics_engine = AdvancedPhysicsEngine(self.grid_width, self.grid_height)
+        self.damage_calculator = FireDamageCalculator()
+        self.scenario_manager = FireScenarioManager()
+        
+        # Particle systems
+        self.smoke_particles = []
+        self.flame_particles = []
+        self.ember_particles = []
+        self.max_particles = 500  # Performance limit
         
         # Simulation state
         self.simulation_mode = SimulationMode.SANDBOX
         self.paused = False
         self.time_step = 0.016  # 60 FPS
         self.simulation_speed = 1.0
+        self.total_simulation_time = 0.0
         
         # UI state
         self.show_hud = True
         self.show_temperature = False
         self.show_oxygen = False
         self.show_smoke = False
+        self.show_particles = True
+        self.show_damage = False
+        self.show_objectives = True
         self.selected_fuel = FuelType.WOOD
         self.brush_size = 1
         
         # Mouse interaction
-        self.mouse_mode = 'fuel'  # 'fuel', 'ignite', 'water', 'wind'
+        self.mouse_mode = 'fuel'  # 'fuel', 'ignite', 'water', 'wind', 'extinguish'
         self.mouse_pressed = False
+        
+        # Performance monitoring
+        self.performance_stats = {
+            'fps': 60,
+            'particle_count': 0,
+            'active_fires': 0,
+            'total_damage': 0.0
+        }
         
         self.mode_names = {
             SimulationMode.SANDBOX: "Sandbox Mode",
@@ -417,10 +1025,39 @@ class FireCombustionSimulator:
             FuelType.OIL: "Oil"
         }
         
+        self.scenario_names = {
+            FireScenario.WILDFIRE: "Wildfire",
+            FireScenario.HOUSE_FIRE: "House Fire",
+            FireScenario.INDUSTRIAL: "Industrial Fire",
+            FireScenario.VEHICLE_FIRE: "Vehicle Fire",
+            FireScenario.ELECTRICAL: "Electrical Fire",
+            FireScenario.CHEMICAL: "Chemical Fire"
+        }
+        
         self.initialize_scenario()
     
     def initialize_scenario(self):
         """Initialize scenario based on simulation mode"""
+        if self.simulation_mode == SimulationMode.SANDBOX:
+            self.setup_sandbox_mode()
+        elif self.simulation_mode == SimulationMode.FIREFIGHTING:
+            self.scenario_manager.setup_scenario(FireScenario.HOUSE_FIRE, self.grid)
+        elif self.simulation_mode == SimulationMode.FOREST_FIRE:
+            self.scenario_manager.setup_scenario(FireScenario.WILDFIRE, self.grid)
+        elif self.simulation_mode == SimulationMode.CHEMISTRY_LAB:
+            self.scenario_manager.setup_scenario(FireScenario.CHEMICAL, self.grid)
+        elif self.simulation_mode == SimulationMode.INDUSTRIAL:
+            self.scenario_manager.setup_scenario(FireScenario.INDUSTRIAL, self.grid)
+        
+        # Reset particles and damage
+        self.smoke_particles.clear()
+        self.flame_particles.clear()
+        self.ember_particles.clear()
+        self.damage_calculator = FireDamageCalculator()
+        self.total_simulation_time = 0.0
+    
+    def setup_sandbox_mode(self):
+        """Setup sandbox mode with basic fuel layout"""
         # Clear grid
         for row in self.grid:
             for cell in row:
@@ -429,91 +1066,127 @@ class FireCombustionSimulator:
                 cell.temperature = 20.0
                 cell.contains_water = False
         
-        if self.simulation_mode == SimulationMode.SANDBOX:
-            # Start with some wood
-            for x in range(self.grid_width // 4, 3 * self.grid_width // 4):
-                for y in range(3 * self.grid_height // 4, self.grid_height):
+        # Add some initial fuel
+        center_x, center_y = self.grid_width // 2, self.grid_height // 2
+        for x in range(center_x - 5, center_x + 5):
+            for y in range(center_y - 5, center_y + 5):
+                if 0 <= x < self.grid_width and 0 <= y < self.grid_height:
                     self.grid[y][x].fuel_amount = 50.0
                     self.grid[y][x].fuel_type = FuelType.WOOD
-        
-        elif self.simulation_mode == SimulationMode.FOREST_FIRE:
-            # Create forest layout
-            for y in range(self.grid_height):
-                for x in range(self.grid_width):
-                    if random.random() < 0.7:  # 70% forest coverage
-                        self.grid[y][x].fuel_amount = random.uniform(30, 80)
-                        self.grid[y][x].fuel_type = FuelType.WOOD
-        
-        elif self.simulation_mode == SimulationMode.CHEMISTRY_LAB:
-            # Different fuel types arranged
-            fuel_types = list(FuelType)
-            for i, fuel in enumerate(fuel_types):
-                x = (i % 4) * (self.grid_width // 4) + self.grid_width // 8
-                y = (i // 4) * (self.grid_height // 2) + self.grid_height // 4
-                for dx in range(-2, 3):
-                    for dy in range(-2, 3):
-                        if 0 <= x + dx < self.grid_width and 0 <= y + dy < self.grid_height:
-                            self.grid[y + dy][x + dx].fuel_amount = 40.0
-                            self.grid[y + dy][x + dx].fuel_type = fuel
-        
-        elif self.simulation_mode == SimulationMode.INDUSTRIAL:
-            # Industrial facility with various fuel types
-            # Oil tanks
-            for x in range(10, 20):
-                for y in range(10, 20):
-                    if x < self.grid_width and y < self.grid_height:
-                        self.grid[y][x].fuel_amount = 100.0
-                        self.grid[y][x].fuel_type = FuelType.OIL
-            
-            # Propane storage
-            for x in range(30, 40):
-                for y in range(10, 20):
-                    if x < self.grid_width and y < self.grid_height:
-                        self.grid[y][x].fuel_amount = 80.0
-                        self.grid[y][x].fuel_type = FuelType.PROPANE
     
     def update_simulation(self):
-        """Update the fire simulation"""
+        """Update the advanced fire simulation"""
         if self.paused:
             return
         
         dt = self.time_step * self.simulation_speed
+        self.total_simulation_time += dt
         
         # Update weather
         self.weather.update(dt)
         self.weather.apply_to_grid(self.grid)
         
         # Update combustion in each cell
+        active_fires = 0
         for row in self.grid:
             for cell in row:
                 cell.update_combustion(dt)
+                if cell.state == FireState.BURNING:
+                    active_fires += 1
+                    
+                    # Generate particles
+                    if self.show_particles and len(self.smoke_particles) < self.max_particles:
+                        # Generate smoke
+                        if random.random() < 0.3:
+                            smoke_x = cell.x * self.grid_size + random.uniform(-2, 2)
+                            smoke_y = cell.y * self.grid_size + random.uniform(-2, 2)
+                            self.smoke_particles.append(SmokeParticle(smoke_x, smoke_y))
+                        
+                        # Generate flames
+                        if random.random() < 0.5:
+                            flame_x = cell.x * self.grid_size + random.uniform(-1, 1)
+                            flame_y = cell.y * self.grid_size + random.uniform(-1, 1)
+                            intensity = min(1.0, cell.temperature / 800.0)
+                            self.flame_particles.append(FlameParticle(flame_x, flame_y, intensity))
+                        
+                        # Generate embers (less frequently)
+                        if random.random() < 0.1 and self.weather.conditions.wind_speed > 3:
+                            ember_x = cell.x * self.grid_size + random.uniform(-1, 1)
+                            ember_y = cell.y * self.grid_size + random.uniform(-1, 1)
+                            self.ember_particles.append(EmberParticle(ember_x, ember_y))
+        
+        # Update particles
+        wind_x = self.weather.conditions.wind_speed * math.cos(self.weather.conditions.wind_direction)
+        wind_y = self.weather.conditions.wind_speed * math.sin(self.weather.conditions.wind_direction)
+        
+        # Update smoke particles
+        self.smoke_particles = [p for p in self.smoke_particles if p.is_alive()]
+        for particle in self.smoke_particles:
+            particle.update(dt, wind_x, wind_y)
+        
+        # Update flame particles
+        self.flame_particles = [p for p in self.flame_particles if p.is_alive()]
+        for particle in self.flame_particles:
+            particle.update(dt, wind_x, wind_y)
+        
+        # Update ember particles and check for new ignitions
+        self.ember_particles = [p for p in self.ember_particles if p.is_alive()]
+        for particle in self.ember_particles:
+            particle.update(dt, wind_x, wind_y)
+            
+            # Check if ember can ignite a new cell
+            if particle.can_ignite():
+                grid_x = int(particle.x // self.grid_size)
+                grid_y = int(particle.y // self.grid_size)
+                
+                if (0 <= grid_x < self.grid_width and 
+                    0 <= grid_y < self.grid_height and 
+                    self.grid[grid_y][grid_x].can_ignite()):
+                    self.grid[grid_y][grid_x].state = FireState.BURNING
+                    self.grid[grid_y][grid_x].temperature = 400
+                    particle.ignition_potential = 0  # Ember used up
+        
+        # Advanced physics
+        self.physics_engine.calculate_heat_transfer(self.grid, dt)
         
         # Handle fire spread
         self.fire_spread.spread_fire(self.grid, dt)
         
-        # Heat transfer between adjacent cells
-        self.transfer_heat(dt)
-    
-    def transfer_heat(self, dt: float):
-        """Transfer heat between adjacent cells"""
-        heat_transfer_rate = 0.1 * dt
+        # Calculate damage
+        damage_this_frame = self.damage_calculator.calculate_damage(self.grid, dt)
         
-        for y in range(self.grid_height):
-            for x in range(self.grid_width):
-                cell = self.grid[y][x]
-                
-                # Check all 4 neighbors
-                for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
-                    nx, ny = x + dx, y + dy
-                    if 0 <= nx < self.grid_width and 0 <= ny < self.grid_height:
-                        neighbor = self.grid[ny][nx]
-                        
-                        # Heat flows from hot to cold
-                        temp_diff = cell.temperature - neighbor.temperature
-                        if abs(temp_diff) > 1:
-                            heat_flow = temp_diff * heat_transfer_rate
-                            cell.temperature -= heat_flow / 2
-                            neighbor.temperature += heat_flow / 2
+        # Update scenario
+        self.scenario_manager.update_scenario(dt)
+        
+        # Update performance stats
+        self.performance_stats['particle_count'] = (len(self.smoke_particles) + 
+                                                   len(self.flame_particles) + 
+                                                   len(self.ember_particles))
+        self.performance_stats['active_fires'] = active_fires
+        self.performance_stats['total_damage'] = self.damage_calculator.total_damage
+    
+    def cycle_scenario(self):
+        """Cycle through different fire scenarios"""
+        scenarios = list(FireScenario)
+        current_index = scenarios.index(self.scenario_manager.current_scenario)
+        new_scenario = scenarios[(current_index + 1) % len(scenarios)]
+        self.scenario_manager.setup_scenario(new_scenario, self.grid)
+        
+        # Reset particles and damage
+        self.smoke_particles.clear()
+        self.flame_particles.clear()
+        self.ember_particles.clear()
+        self.damage_calculator = FireDamageCalculator()
+        self.total_simulation_time = 0.0
+    
+    def toggle_weather(self):
+        """Manually trigger weather change"""
+        self.weather.change_weather()
+    
+    def reset_simulation(self):
+        """Reset the simulation"""
+        self.initialize_scenario()
+        self.total_simulation_time = 0.0
     
     def handle_mouse_interaction(self, mouse_pos: Tuple[int, int], mouse_pressed: bool):
         """Handle mouse interaction with the grid"""
@@ -552,29 +1225,54 @@ class FireCombustionSimulator:
                                 if magnitude > 0:
                                     self.weather.wind_direction = math.atan2(wind_dy, wind_dx)
                                     self.weather.wind_speed = min(10, magnitude * 0.5)
+            elif self.mouse_mode == 'extinguish':
+                if cell.state == FireState.BURNING:
+                    cell.state = FireState.EXTINGUISHING
+                    cell.temperature = 800 # Start extinguishing
+                    cell.burn_time = 0 # Reset burn time for extinguishing
+                    cell.fuel_amount = 0 # Ensure no fuel left
+                    cell.oxygen_level = 21.0 # Restore oxygen
+                    cell.smoke_density = 0.0
+                    cell.heat_energy = 0.0
+                    cell.temperature = 20.0 # Final temperature after extinguishing
+                    cell.contains_water = False
+                    cell.water_amount = 0.0
+                    cell.humidity = 50.0 # Restore humidity
+                    cell.wind_velocity_x = 0.0
+                    cell.wind_velocity_y = 0.0
+                    cell.pressure = 1013.25
+                    cell.state = FireState.EXTINGUISHED
     
     def draw_grid(self, surface):
-        """Draw the simulation grid"""
+        """Draw the fire simulation grid with particles"""
         for y in range(self.grid_height):
             for x in range(self.grid_width):
                 cell = self.grid[y][x]
                 
-                # Get display color based on view mode
+                # Get display color based on current view mode
                 if self.show_temperature:
                     # Temperature visualization
-                    temp_norm = min(1.0, max(0.0, (cell.temperature - 20) / 1000))
-                    color = (int(255 * temp_norm), 0, int(255 * (1 - temp_norm)))
+                    temp_intensity = min(255, max(0, int((cell.temperature - 20) * 2)))
+                    color = (temp_intensity, 0, 255 - temp_intensity)
                 elif self.show_oxygen:
                     # Oxygen visualization
-                    oxygen_norm = cell.oxygen_level / 21.0
-                    color = (0, 0, int(255 * oxygen_norm))
+                    oxygen_intensity = int((cell.oxygen_level / 21.0) * 255)
+                    color = (255 - oxygen_intensity, 255 - oxygen_intensity, 255)
                 elif self.show_smoke:
                     # Smoke visualization
-                    smoke_norm = min(1.0, cell.smoke_density / 100.0)
-                    intensity = int(100 * smoke_norm)
-                    color = (intensity, intensity, intensity)
+                    smoke_intensity = min(255, int(cell.smoke_density * 2.55))
+                    color = (smoke_intensity, smoke_intensity, smoke_intensity)
+                elif self.show_damage:
+                    # Damage visualization
+                    pos_key = f"{x},{y}"
+                    if pos_key in self.damage_calculator.structure_health:
+                        health = self.damage_calculator.structure_health[pos_key]
+                        damage_intensity = int((100 - health) * 2.55)
+                        color = (damage_intensity, 255 - damage_intensity, 0)
+                    else:
+                        color = (0, 255, 0)  # No damage
                 else:
-                    # Normal fire/fuel visualization
+                    # Normal fire visualization
                     color = cell.get_display_color()
                 
                 # Draw cell
@@ -582,17 +1280,39 @@ class FireCombustionSimulator:
                                  self.grid_size, self.grid_size)
                 pygame.draw.rect(surface, color, rect)
                 
-                # Draw wind arrows if significant
-                if (cell.wind_velocity_x**2 + cell.wind_velocity_y**2) > 1:
-                    wind_magnitude = math.sqrt(cell.wind_velocity_x**2 + cell.wind_velocity_y**2)
-                    if wind_magnitude > 0.5:
-                        arrow_length = min(self.grid_size, wind_magnitude * 2)
-                        center_x = x * self.grid_size + self.grid_size // 2
-                        center_y = y * self.grid_size + self.grid_size // 2
-                        end_x = center_x + cell.wind_velocity_x * arrow_length / wind_magnitude
-                        end_y = center_y + cell.wind_velocity_y * arrow_length / wind_magnitude
-                        pygame.draw.line(surface, NEON_CYAN, 
-                                       (center_x, center_y), (int(end_x), int(end_y)), 1)
+                # Add fire glow effect for burning cells
+                if cell.state == FireState.BURNING and not self.show_temperature:
+                    glow_color = (255, 255, 0, 128)  # Yellow glow
+                    glow_rect = pygame.Rect(x * self.grid_size - 1, y * self.grid_size - 1,
+                                          self.grid_size + 2, self.grid_size + 2)
+                    pygame.draw.rect(surface, glow_color[:3], glow_rect, 1)
+        
+        # Draw particles
+        if self.show_particles:
+            # Draw smoke particles
+            for particle in self.smoke_particles:
+                if 0 <= particle.x < WIDTH and 0 <= particle.y < HEIGHT:
+                    alpha = int(particle.density * 255)
+                    smoke_color = (100, 100, 100, alpha)
+                    size = int(particle.size)
+                    pygame.draw.circle(surface, smoke_color[:3], 
+                                     (int(particle.x), int(particle.y)), size)
+            
+            # Draw flame particles
+            for particle in self.flame_particles:
+                if 0 <= particle.x < WIDTH and 0 <= particle.y < HEIGHT:
+                    color = particle.get_color()
+                    size = int(particle.size)
+                    pygame.draw.circle(surface, color, 
+                                     (int(particle.x), int(particle.y)), size)
+            
+            # Draw ember particles
+            for particle in self.ember_particles:
+                if 0 <= particle.x < WIDTH and 0 <= particle.y < HEIGHT:
+                    color = (255, 100, 0) if particle.can_ignite() else (100, 50, 0)
+                    size = int(particle.size)
+                    pygame.draw.circle(surface, color, 
+                                     (int(particle.x), int(particle.y)), size)
     
     def draw_hud(self, surface):
         """Draw heads-up display"""
@@ -731,6 +1451,27 @@ class FireCombustionSimulator:
                     self.weather.humidity = min(100, self.weather.humidity + 5)
                 elif event.key == pygame.K_d:
                     self.weather.humidity = max(0, self.weather.humidity - 5)
+                elif event.key == pygame.K_p: # Toggle particles
+                    self.show_particles = not self.show_particles
+                    self.show_temperature = False
+                    self.show_oxygen = False
+                    self.show_smoke = False
+                elif event.key == pygame.K_d: # Toggle damage
+                    self.show_damage = not self.show_damage
+                    self.show_temperature = False
+                    self.show_oxygen = False
+                    self.show_smoke = False
+                elif event.key == pygame.K_o: # Toggle objectives
+                    self.show_objectives = not self.show_objectives
+                    self.show_temperature = False
+                    self.show_oxygen = False
+                    self.show_smoke = False
+                elif event.key == pygame.K_c: # Cycle scenarios
+                    self.cycle_scenario()
+                elif event.key == pygame.K_w: # Toggle weather
+                    self.toggle_weather()
+                elif event.key == pygame.K_r: # Reset simulation
+                    self.reset_simulation()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     self.mouse_pressed = True
@@ -776,7 +1517,7 @@ def return_to_launcher():
     sys.exit()
 
 def main():
-    """Main simulation loop"""
+    """Main simulation loop with enhanced features"""
     global screen
     
     # Initialize simulator
@@ -806,13 +1547,11 @@ def main():
         # Clear screen
         screen.fill(CYBER_BLACK)
         
-        # Draw simulation
+        # Draw everything
         simulator.draw_grid(screen)
-        
-        # Draw UI
-        simulator.draw_hud(screen)
-        simulator.draw_controls(screen)
-        simulator.draw_legend(screen)
+        simulator.draw_advanced_hud(screen)
+        simulator.draw_damage_report(screen)
+        simulator.draw_enhanced_controls(screen)
         
         # Update display
         pygame.display.flip()

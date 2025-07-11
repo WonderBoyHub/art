@@ -85,6 +85,46 @@ class GameMode(Enum):
     CORPORATE_WAR = 3
     CYBER_DETECTIVE = 4
 
+class AISecurityType(Enum):
+    BASIC_ICE = 0
+    ADAPTIVE_ICE = 1
+    NEURAL_FIREWALL = 2
+    QUANTUM_GUARDIAN = 3
+    HIVE_MIND = 4
+    SENTIENT_WATCHDOG = 5
+
+class EncryptionType(Enum):
+    BASIC = 0
+    AES = 1
+    RSA = 2
+    QUANTUM = 3
+    NEURAL = 4
+    BLOCKCHAIN = 5
+
+class SecurityProtocol(Enum):
+    NONE = 0
+    BASIC_AUTH = 1
+    TWO_FACTOR = 2
+    BIOMETRIC = 3
+    QUANTUM_KEY = 4
+    NEURAL_PATTERN = 5
+    SOCIAL_PROOF = 6
+
+class AttackVector(Enum):
+    DIRECT_HACK = 0
+    SOCIAL_ENGINEERING = 1
+    PHYSICAL_ACCESS = 2
+    INSIDER_THREAT = 3
+    SUPPLY_CHAIN = 4
+    ZERO_DAY = 5
+
+class NetworkArchitecture(Enum):
+    HIERARCHICAL = 0
+    MESH = 1
+    STAR = 2
+    RING = 3
+    FLAT = 4
+
 @dataclass
 class NetworkNode:
     """Individual network node with security and data"""
@@ -101,6 +141,7 @@ class NetworkNode:
     encryption_level: int
     access_level: int
     contains_data: bool
+    is_honeypot: bool = False # Added honeypot attribute
     
     def __init__(self, x: int, y: int, node_type: NodeType):
         self.x = x
@@ -116,6 +157,7 @@ class NetworkNode:
         self.encryption_level = random.randint(1, 10)
         self.access_level = 0
         self.contains_data = random.random() < 0.6
+        self.is_honeypot = False
         
         # Adjust properties based on node type
         if node_type == NodeType.FIREWALL:
@@ -198,8 +240,86 @@ class DataPacket:
         """Check if packet reached target"""
         return abs(self.x - self.target_x) < 2 and abs(self.y - self.target_y) < 2
 
+@dataclass
+class AISecurityAgent:
+    """AI-powered security agent that adapts to threats"""
+    agent_type: AISecurityType
+    learning_rate: float
+    adaptation_level: int
+    threat_patterns: List[str]
+    response_protocols: List[str]
+    memory_bank: Dict[str, float]
+    active: bool
+    
+    def __init__(self, agent_type: AISecurityType):
+        self.agent_type = agent_type
+        self.learning_rate = random.uniform(0.1, 0.5)
+        self.adaptation_level = random.randint(1, 5)
+        self.threat_patterns = []
+        self.response_protocols = []
+        self.memory_bank = {}
+        self.active = True
+        
+        # Initialize based on agent type
+        if agent_type == AISecurityType.ADAPTIVE_ICE:
+            self.learning_rate *= 1.5
+            self.response_protocols = ['counterhack', 'trace', 'isolate']
+        elif agent_type == AISecurityType.NEURAL_FIREWALL:
+            self.response_protocols = ['pattern_match', 'behavior_analysis', 'anomaly_detect']
+        elif agent_type == AISecurityType.QUANTUM_GUARDIAN:
+            self.adaptation_level += 2
+            self.response_protocols = ['quantum_entangle', 'probability_shift', 'observer_effect']
+        elif agent_type == AISecurityType.HIVE_MIND:
+            self.response_protocols = ['collective_response', 'distributed_analysis', 'swarm_attack']
+        elif agent_type == AISecurityType.SENTIENT_WATCHDOG:
+            self.learning_rate *= 2
+            self.response_protocols = ['predictive_analysis', 'preemptive_strike', 'adaptive_shield']
+    
+    def learn_from_attack(self, attack_pattern: str, success: bool):
+        """Learn from observed attack patterns"""
+        if attack_pattern not in self.memory_bank:
+            self.memory_bank[attack_pattern] = 0.0
+        
+        # Update memory based on attack success
+        if success:
+            self.memory_bank[attack_pattern] += self.learning_rate
+        else:
+            self.memory_bank[attack_pattern] -= self.learning_rate * 0.5
+        
+        # Adaptation
+        if attack_pattern not in self.threat_patterns:
+            self.threat_patterns.append(attack_pattern)
+    
+    def calculate_threat_level(self, attack_pattern: str) -> float:
+        """Calculate threat level for given attack pattern"""
+        base_threat = 0.5
+        
+        # Check memory bank
+        if attack_pattern in self.memory_bank:
+            memory_modifier = self.memory_bank[attack_pattern] * 0.1
+            base_threat += memory_modifier
+        
+        # Adaptation level modifier
+        adaptation_modifier = self.adaptation_level * 0.05
+        base_threat += adaptation_modifier
+        
+        return max(0.0, min(1.0, base_threat))
+    
+    def generate_countermeasure(self, attack_pattern: str) -> str:
+        """Generate appropriate countermeasure"""
+        threat_level = self.calculate_threat_level(attack_pattern)
+        
+        if threat_level > 0.8:
+            return random.choice(['lockdown', 'counterhack', 'trace_origin'])
+        elif threat_level > 0.6:
+            return random.choice(['increase_encryption', 'pattern_scramble', 'decoy_deploy'])
+        elif threat_level > 0.4:
+            return random.choice(['alert_admin', 'log_activity', 'minor_countermeasure'])
+        else:
+            return 'monitor'
+
 class HackingEngine:
-    """Core hacking mechanics"""
+    """Enhanced hacking mechanics with AI countermeasures"""
     def __init__(self):
         self.stealth_level = 100.0
         self.detection_risk = 0.0
@@ -209,8 +329,190 @@ class HackingEngine:
         self.reputation = 0
         self.heat_level = 0.0
         
+        # Advanced hacking capabilities
+        self.ai_assistant_active = False
+        self.quantum_tools_unlocked = False
+        self.social_engineering_profile = {}
+        self.zero_day_exploits = 1
+        self.neural_patterns_analyzed = set()
+        self.forensic_cleaning_available = True
+        self.botnet_size = 0
+        
+        # Countermeasures tracking
+        self.active_countermeasures = []
+        self.traced_connections = []
+        self.honeypot_detected = []
+        
+    def enhance_ai_capabilities(self):
+        """Unlock AI-enhanced hacking capabilities"""
+        self.ai_assistant_active = True
+        self.skill_levels[HackingTool.SCANNER] += 2
+        self.skill_levels[HackingTool.STEALTH] += 2
+        
+    def unlock_quantum_tools(self):
+        """Unlock quantum hacking tools"""
+        self.quantum_tools_unlocked = True
+        if HackingTool.DECRYPTOR not in self.available_tools:
+            self.available_tools.append(HackingTool.DECRYPTOR)
+    
+    def develop_social_profile(self, target_info: Dict[str, Any]):
+        """Develop social engineering profile"""
+        self.social_engineering_profile.update(target_info)
+        
+    def attempt_advanced_breach(self, node: NetworkNode, tool: HackingTool, ai_agent: Optional[AISecurityAgent] = None) -> Dict[str, Any]:
+        """Attempt advanced breach with AI countermeasures"""
+        attack_pattern = f"{tool.name.lower()}_attack"
+        
+        # Check if AI agent is present and active
+        if ai_agent and ai_agent.active:
+            threat_level = ai_agent.calculate_threat_level(attack_pattern)
+            countermeasure = ai_agent.generate_countermeasure(attack_pattern)
+            
+            # Apply countermeasure
+            if countermeasure == 'lockdown':
+                return {'success': False, 'message': 'System locked down by AI security'}
+            elif countermeasure == 'counterhack':
+                self.heat_level += 25
+                return {'success': False, 'message': 'Counterhack detected! Heat level increased'}
+            elif countermeasure == 'trace_origin':
+                self.traced_connections.append(node)
+                self.detection_risk += 30
+                return {'success': False, 'message': 'Connection traced! High detection risk'}
+            elif countermeasure == 'pattern_scramble':
+                # Make future attacks harder
+                self.skill_levels[tool] = max(1, self.skill_levels[tool] - 1)
+                return {'success': False, 'message': 'Security patterns scrambled'}
+        
+        # Standard breach attempt
+        success = self.attempt_breach(node, tool)
+        
+        # AI learning from attack
+        if ai_agent:
+            ai_agent.learn_from_attack(attack_pattern, success)
+        
+        if success:
+            return {'success': True, 'message': 'Breach successful'}
+        else:
+            return {'success': False, 'message': 'Breach failed'}
+    
+    def deploy_advanced_stealth(self):
+        """Deploy advanced stealth with AI assistance"""
+        base_stealth = 20
+        
+        if self.ai_assistant_active:
+            base_stealth += 15
+        
+        if self.quantum_tools_unlocked:
+            base_stealth += 10
+        
+        self.stealth_level = min(100, self.stealth_level + base_stealth)
+        self.detection_risk = max(0, self.detection_risk - base_stealth)
+        
+        if self.forensic_cleaning_available:
+            self.clean_forensic_traces()
+    
+    def clean_forensic_traces(self):
+        """Clean forensic evidence"""
+        if self.forensic_cleaning_available:
+            self.traced_connections.clear()
+            self.heat_level = max(0, self.heat_level - 15)
+            self.forensic_cleaning_available = False  # Limited use
+    
+    def analyze_neural_patterns(self, node: NetworkNode) -> Dict[str, Any]:
+        """Analyze neural patterns in security systems"""
+        node_id = id(node)
+        
+        if node_id in self.neural_patterns_analyzed:
+            return {'success': True, 'message': 'Neural patterns already analyzed'}
+        
+        # Analyze neural patterns
+        analysis_success = random.random() < (self.skill_levels[HackingTool.SCANNER] * 0.15)
+        
+        if analysis_success:
+            self.neural_patterns_analyzed.add(node_id)
+            # Increase effectiveness against neural security
+            if hasattr(node, 'ai_agent') and node.ai_agent:
+                node.ai_agent.adaptation_level = max(1, node.ai_agent.adaptation_level - 1)
+            return {'success': True, 'message': 'Neural patterns analyzed and weakened'}
+        else:
+            return {'success': False, 'message': 'Neural pattern analysis failed'}
+    
+    def social_engineering_attack(self, target_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Perform social engineering attack"""
+        if not self.social_engineering_profile:
+            return {'success': False, 'message': 'No social engineering profile available'}
+        
+        # Calculate success based on profile completeness
+        profile_completeness = len(self.social_engineering_profile) / 10.0
+        social_skill = self.skill_levels.get(HackingTool.KEYLOGGER, 1)  # Using keylogger as social skill
+        
+        success_rate = min(0.8, profile_completeness * social_skill * 0.2)
+        
+        if random.random() < success_rate:
+            return {'success': True, 'message': 'Social engineering successful', 'access_level': 'partial'}
+        else:
+            return {'success': False, 'message': 'Social engineering failed'}
+    
+    def deploy_zero_day_exploit(self, node: NetworkNode) -> Dict[str, Any]:
+        """Deploy zero-day exploit"""
+        if self.zero_day_exploits <= 0:
+            return {'success': False, 'message': 'No zero-day exploits available'}
+        
+        self.zero_day_exploits -= 1
+        
+        # Zero-day has very high success rate
+        if random.random() < 0.9:
+            node.is_breached = True
+            node.access_level = 10
+            return {'success': True, 'message': 'Zero-day exploit successful - full access gained'}
+        else:
+            return {'success': False, 'message': 'Zero-day exploit failed'}
+    
+    def expand_botnet(self, compromised_node: NetworkNode):
+        """Add compromised node to botnet"""
+        if compromised_node.is_breached:
+            self.botnet_size += 1
+            # Botnet provides distributed computing power
+            self.skill_levels[HackingTool.VIRUS] += 1
+            
+    def coordinate_distributed_attack(self, target_nodes: List[NetworkNode]) -> Dict[str, Any]:
+        """Coordinate distributed attack using botnet"""
+        if self.botnet_size < 3:
+            return {'success': False, 'message': 'Insufficient botnet size for distributed attack'}
+        
+        success_count = 0
+        
+        for node in target_nodes:
+            # Distributed attack has higher success rate
+            enhanced_success_rate = min(0.7, self.botnet_size * 0.1)
+            
+            if random.random() < enhanced_success_rate:
+                node.is_breached = True
+                success_count += 1
+        
+        if success_count > 0:
+            return {'success': True, 'message': f'Distributed attack breached {success_count} nodes'}
+        else:
+            return {'success': False, 'message': 'Distributed attack failed'}
+    
+    def quantum_entanglement_hack(self, node: NetworkNode) -> Dict[str, Any]:
+        """Perform quantum entanglement hack"""
+        if not self.quantum_tools_unlocked:
+            return {'success': False, 'message': 'Quantum tools not available'}
+        
+        # Quantum hack bypasses traditional security
+        quantum_success = random.random() < 0.6
+        
+        if quantum_success:
+            node.is_breached = True
+            # Quantum hack is stealthy
+            self.detection_risk = max(0, self.detection_risk - 10)
+            return {'success': True, 'message': 'Quantum entanglement hack successful'}
+        else:
+            return {'success': False, 'message': 'Quantum entanglement failed'}
+    
     def attempt_breach(self, node: NetworkNode, tool: HackingTool) -> bool:
-        """Attempt to breach a node"""
+        """Original breach method for compatibility"""
         # Calculate success probability
         tool_skill = self.skill_levels[tool]
         base_chance = 0.3
@@ -289,27 +591,253 @@ class HackingEngine:
             node.access_level = 10  # Permanent access
             return True
         return False
+    
+    def get_hacking_report(self) -> Dict[str, Any]:
+        """Get comprehensive hacking report"""
+        return {
+            'stealth_level': self.stealth_level,
+            'detection_risk': self.detection_risk,
+            'heat_level': self.heat_level,
+            'botnet_size': self.botnet_size,
+            'neural_patterns_analyzed': len(self.neural_patterns_analyzed),
+            'zero_day_exploits': self.zero_day_exploits,
+            'ai_assistant': self.ai_assistant_active,
+            'quantum_tools': self.quantum_tools_unlocked,
+            'traced_connections': len(self.traced_connections),
+            'active_countermeasures': len(self.active_countermeasures)
+        }
 
 class NetworkTopology:
-    """Manages network structure and connections"""
+    """Enhanced network structure with AI security agents"""
     def __init__(self, node_count: int = 20):
         self.nodes = []
         self.data_packets = []
-        self.generate_network(node_count)
+        self.ai_security_agents = []
+        self.honeypots = []
+        self.network_architecture = random.choice(list(NetworkArchitecture))
+        self.security_level = random.choice(list(SecurityLevel))
+        self.generate_advanced_network(node_count)
         
-    def generate_network(self, node_count: int):
-        """Generate network topology"""
+    def generate_advanced_network(self, node_count: int):
+        """Generate advanced network topology with AI security"""
         self.nodes.clear()
+        self.ai_security_agents.clear()
+        self.honeypots.clear()
         
-        # Create nodes
+        # Create nodes based on network architecture
+        if self.network_architecture == NetworkArchitecture.HIERARCHICAL:
+            self.generate_hierarchical_network(node_count)
+        elif self.network_architecture == NetworkArchitecture.MESH:
+            self.generate_mesh_network(node_count)
+        elif self.network_architecture == NetworkArchitecture.STAR:
+            self.generate_star_network(node_count)
+        elif self.network_architecture == NetworkArchitecture.RING:
+            self.generate_ring_network(node_count)
+        else:
+            self.generate_flat_network(node_count)
+        
+        # Add AI security agents to critical nodes
+        self.deploy_ai_security()
+        
+        # Add honeypots
+        self.deploy_honeypots()
+        
+        # Ensure connectivity
+        self.ensure_connectivity()
+        
+    def generate_hierarchical_network(self, node_count: int):
+        """Generate hierarchical network structure"""
+        # Core layer (1-2 mainframes)
+        core_nodes = min(2, node_count // 10)
+        for i in range(core_nodes):
+            x = WIDTH // 2 + random.randint(-50, 50)
+            y = HEIGHT // 4 + random.randint(-30, 30)
+            node = NetworkNode(x, y, NodeType.MAINFRAME)
+            node.security_level = SecurityLevel.MILITARY
+            self.nodes.append(node)
+        
+        # Distribution layer (firewalls and servers)
+        dist_nodes = min(6, node_count // 4)
+        for i in range(dist_nodes):
+            x = random.randint(100, WIDTH - 100)
+            y = HEIGHT // 2 + random.randint(-50, 50)
+            node_type = NodeType.FIREWALL if i % 2 == 0 else NodeType.SERVER
+            node = NetworkNode(x, y, node_type)
+            node.security_level = SecurityLevel.HIGH
+            self.nodes.append(node)
+        
+        # Access layer (terminals and databases)
+        remaining_nodes = node_count - len(self.nodes)
+        for i in range(remaining_nodes):
+            x = random.randint(50, WIDTH - 50)
+            y = random.randint(3 * HEIGHT // 4, HEIGHT - 50)
+            node_type = random.choice([NodeType.TERMINAL, NodeType.DATABASE, NodeType.DATASTORE])
+            node = NetworkNode(x, y, node_type)
+            self.nodes.append(node)
+    
+    def generate_mesh_network(self, node_count: int):
+        """Generate mesh network structure"""
+        for i in range(node_count):
+            x = random.randint(50, WIDTH - 50)
+            y = random.randint(50, HEIGHT - 50)
+            node_type = random.choice(list(NodeType))
+            node = NetworkNode(x, y, node_type)
+            self.nodes.append(node)
+    
+    def generate_star_network(self, node_count: int):
+        """Generate star network structure"""
+        # Central hub
+        center_x, center_y = WIDTH // 2, HEIGHT // 2
+        hub = NetworkNode(center_x, center_y, NodeType.MAINFRAME)
+        hub.security_level = SecurityLevel.MILITARY
+        self.nodes.append(hub)
+        
+        # Spoke nodes
+        for i in range(node_count - 1):
+            angle = (2 * math.pi * i) / (node_count - 1)
+            radius = random.randint(80, 120)
+            x = center_x + int(radius * math.cos(angle))
+            y = center_y + int(radius * math.sin(angle))
+            node_type = random.choice(list(NodeType))
+            node = NetworkNode(x, y, node_type)
+            self.nodes.append(node)
+    
+    def generate_ring_network(self, node_count: int):
+        """Generate ring network structure"""
+        center_x, center_y = WIDTH // 2, HEIGHT // 2
+        radius = 100
+        
+        for i in range(node_count):
+            angle = (2 * math.pi * i) / node_count
+            x = center_x + int(radius * math.cos(angle))
+            y = center_y + int(radius * math.sin(angle))
+            node_type = random.choice(list(NodeType))
+            node = NetworkNode(x, y, node_type)
+            self.nodes.append(node)
+    
+    def generate_flat_network(self, node_count: int):
+        """Generate flat network structure (original)"""
         for _ in range(node_count):
             x = random.randint(50, WIDTH - 50)
             y = random.randint(50, HEIGHT - 50)
             node_type = random.choice(list(NodeType))
             node = NetworkNode(x, y, node_type)
             self.nodes.append(node)
+    
+    def deploy_ai_security(self):
+        """Deploy AI security agents to critical nodes"""
+        critical_nodes = [n for n in self.nodes if n.node_type in [NodeType.MAINFRAME, NodeType.FIREWALL, NodeType.ICE]]
         
-        # Create connections
+        for node in critical_nodes:
+            if random.random() < 0.7:  # 70% chance for critical nodes
+                agent_type = random.choice(list(AISecurityType))
+                
+                # Adjust agent type based on node type
+                if node.node_type == NodeType.MAINFRAME:
+                    agent_type = random.choice([AISecurityType.QUANTUM_GUARDIAN, AISecurityType.SENTIENT_WATCHDOG])
+                elif node.node_type == NodeType.FIREWALL:
+                    agent_type = AISecurityType.NEURAL_FIREWALL
+                elif node.node_type == NodeType.ICE:
+                    agent_type = AISecurityType.ADAPTIVE_ICE
+                
+                ai_agent = AISecurityAgent(agent_type)
+                node.ai_agent = ai_agent
+                self.ai_security_agents.append(ai_agent)
+        
+        # Some regular nodes might also have basic AI
+        regular_nodes = [n for n in self.nodes if not hasattr(n, 'ai_agent')]
+        for node in random.sample(regular_nodes, min(3, len(regular_nodes))):
+            if random.random() < 0.2:  # 20% chance for regular nodes
+                ai_agent = AISecurityAgent(AISecurityType.BASIC_ICE)
+                node.ai_agent = ai_agent
+                self.ai_security_agents.append(ai_agent)
+    
+    def deploy_honeypots(self):
+        """Deploy honeypot nodes to detect attacks"""
+        honeypot_count = max(1, len(self.nodes) // 10)  # 10% of nodes are honeypots
+        
+        for _ in range(honeypot_count):
+            x = random.randint(50, WIDTH - 50)
+            y = random.randint(50, HEIGHT - 50)
+            # Honeypots look like valuable targets
+            node_type = random.choice([NodeType.DATABASE, NodeType.SERVER])
+            honeypot = NetworkNode(x, y, node_type)
+            honeypot.is_honeypot = True
+            honeypot.data_value *= 2  # Make it look more valuable
+            honeypot.security_level = SecurityLevel.LOW  # Make it look easier
+            self.nodes.append(honeypot)
+            self.honeypots.append(honeypot)
+    
+    def create_smart_connections(self):
+        """Create intelligent connections based on network architecture"""
+        if self.network_architecture == NetworkArchitecture.HIERARCHICAL:
+            self.create_hierarchical_connections()
+        elif self.network_architecture == NetworkArchitecture.STAR:
+            self.create_star_connections()
+        elif self.network_architecture == NetworkArchitecture.RING:
+            self.create_ring_connections()
+        elif self.network_architecture == NetworkArchitecture.MESH:
+            self.create_mesh_connections()
+        else:
+            self.create_random_connections()
+    
+    def create_hierarchical_connections(self):
+        """Create connections for hierarchical network"""
+        core_nodes = [n for n in self.nodes if n.node_type == NodeType.MAINFRAME]
+        dist_nodes = [n for n in self.nodes if n.node_type in [NodeType.FIREWALL, NodeType.SERVER]]
+        access_nodes = [n for n in self.nodes if n not in core_nodes and n not in dist_nodes]
+        
+        # Connect core nodes to each other
+        for i, node1 in enumerate(core_nodes):
+            for node2 in core_nodes[i+1:]:
+                node1.connections.append(node2)
+                node2.connections.append(node1)
+        
+        # Connect core to distribution
+        for core_node in core_nodes:
+            for dist_node in dist_nodes:
+                if random.random() < 0.8:
+                    core_node.connections.append(dist_node)
+                    dist_node.connections.append(core_node)
+        
+        # Connect distribution to access
+        for dist_node in dist_nodes:
+            nearby_access = [n for n in access_nodes if 
+                           math.sqrt((n.x - dist_node.x)**2 + (n.y - dist_node.y)**2) < 150]
+            for access_node in nearby_access:
+                if random.random() < 0.6:
+                    dist_node.connections.append(access_node)
+                    access_node.connections.append(dist_node)
+    
+    def create_star_connections(self):
+        """Create connections for star network"""
+        if self.nodes:
+            hub = self.nodes[0]  # First node is the hub
+            for node in self.nodes[1:]:
+                hub.connections.append(node)
+                node.connections.append(hub)
+    
+    def create_ring_connections(self):
+        """Create connections for ring network"""
+        for i, node in enumerate(self.nodes):
+            next_node = self.nodes[(i + 1) % len(self.nodes)]
+            node.connections.append(next_node)
+            next_node.connections.append(node)
+    
+    def create_mesh_connections(self):
+        """Create connections for mesh network"""
+        for node in self.nodes:
+            # Connect to nearby nodes
+            nearby_nodes = [n for n in self.nodes if n != node and 
+                          math.sqrt((n.x - node.x)**2 + (n.y - node.y)**2) < 100]
+            
+            # Random connections
+            connection_count = random.randint(2, min(5, len(nearby_nodes)))
+            connections = random.sample(nearby_nodes, connection_count)
+            node.connections.extend(connections)
+    
+    def create_random_connections(self):
+        """Create random connections (original method)"""
         for node in self.nodes:
             # Connect to nearby nodes
             nearby_nodes = [n for n in self.nodes if n != node and 
@@ -319,14 +847,39 @@ class NetworkTopology:
             connection_count = random.randint(1, min(4, len(nearby_nodes)))
             connections = random.sample(nearby_nodes, connection_count)
             node.connections.extend(connections)
+    
+    def detect_intrusion(self, attacking_node: NetworkNode) -> List[AISecurityAgent]:
+        """Detect intrusion and activate AI responses"""
+        activated_agents = []
         
-        # Ensure all nodes are connected
-        self.ensure_connectivity()
+        for agent in self.ai_security_agents:
+            if agent.active:
+                # AI agents can detect attacks on connected nodes
+                connected_nodes = [n for n in self.nodes if hasattr(n, 'ai_agent') and n.ai_agent == agent]
+                
+                for node in connected_nodes:
+                    if any(conn == attacking_node for conn in node.connections):
+                        # Activate agent response
+                        activated_agents.append(agent)
+                        break
+        
+        return activated_agents
+    
+    def update_ai_learning(self, attack_patterns: List[str]):
+        """Update AI learning based on observed attack patterns"""
+        for agent in self.ai_security_agents:
+            for pattern in attack_patterns:
+                # Random success/failure for learning
+                success = random.random() < 0.5
+                agent.learn_from_attack(pattern, success)
     
     def ensure_connectivity(self):
         """Ensure all nodes are reachable"""
         if not self.nodes:
             return
+        
+        # First create connections based on architecture
+        self.create_smart_connections()
         
         visited = set()
         to_visit = [self.nodes[0]]
@@ -677,59 +1230,92 @@ class CyberpunkHackingSimulator:
                                      (node.x, node.y), wave_radius, 1)
     
     def draw_hud(self, surface):
-        """Draw heads-up display"""
+        """Enhanced HUD with AI security information"""
         if not self.show_hud:
             return
         
-        # HUD background
-        hud_rect = pygame.Rect(0, 0, WIDTH, 60)
-        pygame.draw.rect(surface, (0, 0, 0, 180), hud_rect)
+        # Background panel
+        hud_panel = pygame.Rect(10, 10, 460, 60)
+        pygame.draw.rect(surface, (10, 10, 20), hud_panel)
+        pygame.draw.rect(surface, NEON_CYAN, hud_panel, 2)
+        
+        font = pygame.font.Font(None, 16)
         
         # Game mode and mission
-        font = pygame.font.Font(None, 18)
         mode_text = f"Mode: {self.mode_names[self.game_mode]}"
-        text = font.render(mode_text, True, NEON_CYAN)
-        surface.blit(text, (10, 10))
+        text = font.render(mode_text, True, NEON_YELLOW)
+        surface.blit(text, (15, 15))
         
-        # Mission objective
-        mission_text = f"Objective: {self.mission_objective}"
+        mission_text = f"Mission: {self.mission_objective}"
         text = font.render(mission_text, True, NEON_GREEN)
-        surface.blit(text, (10, 30))
+        surface.blit(text, (15, 30))
         
-        # Status indicators
-        credits_text = f"Credits: {self.hacking_engine.credits}"
-        text = font.render(credits_text, True, NEON_YELLOW)
-        surface.blit(text, (300, 10))
+        # Hacking engine stats
+        engine_stats = self.hacking_engine.get_hacking_report()
         
-        stealth_text = f"Stealth: {self.hacking_engine.stealth_level:.0f}%"
-        color = NEON_GREEN if self.hacking_engine.stealth_level > 50 else NEON_RED
-        text = font.render(stealth_text, True, color)
-        surface.blit(text, (300, 30))
-        
-        # Detection warning
-        if self.hacking_engine.detection_risk > 70:
-            warning_text = "! DETECTION IMMINENT !"
-            text = font.render(warning_text, True, NEON_RED)
-            surface.blit(text, (WIDTH // 2 - 80, 45))
-    
-    def draw_controls(self, surface):
-        """Draw control instructions"""
-        if self.view_mode == 'terminal':
-            return
-        
-        controls_rect = pygame.Rect(10, HEIGHT - 80, 460, 70)
-        pygame.draw.rect(surface, (0, 0, 0, 180), controls_rect)
-        
-        font = pygame.font.Font(None, 14)
-        controls = [
-            "Click - Select Node  |  TAB - Toggle Terminal  |  M - Change Mode",
-            "SPACE - Pause  |  H - Toggle HUD  |  V - Change View",
-            "F8 - Fullscreen  |  ESC - Return to Launcher"
+        stats_text = [
+            f"Stealth: {engine_stats['stealth_level']:.1f}%",
+            f"Detection: {engine_stats['detection_risk']:.1f}%",
+            f"Heat: {engine_stats['heat_level']:.1f}",
+            f"Botnet: {engine_stats['botnet_size']} nodes"
         ]
         
+        for i, stat in enumerate(stats_text):
+            color = NEON_RED if "Detection" in stat and engine_stats['detection_risk'] > 50 else NEON_GREEN
+            text = font.render(stat, True, color)
+            surface.blit(text, (200 + (i % 2) * 100, 15 + (i // 2) * 15))
+        
+        # AI capabilities
+        ai_text = []
+        if engine_stats['ai_assistant']:
+            ai_text.append("AI: ACTIVE")
+        if engine_stats['quantum_tools']:
+            ai_text.append("QUANTUM: READY")
+        if engine_stats['zero_day_exploits'] > 0:
+            ai_text.append(f"0-DAY: {engine_stats['zero_day_exploits']}")
+        
+        for i, text_str in enumerate(ai_text):
+            text = font.render(text_str, True, NEON_PURPLE)
+            surface.blit(text, (400, 15 + i * 15))
+        
+        # Network information
+        network_info = f"Network: {self.network.network_architecture.name} | Security: {self.network.security_level.name}"
+        text = font.render(network_info, True, NEON_CYAN)
+        surface.blit(text, (15, 45))
+        
+        # AI agents status
+        ai_count = len([a for a in self.network.ai_security_agents if a.active])
+        total_agents = len(self.network.ai_security_agents)
+        breached_nodes = len([n for n in self.network.nodes if n.is_breached])
+        honeypots_triggered = len([h for h in self.network.honeypots if h.is_breached])
+        
+        security_text = f"AI Agents: {ai_count}/{total_agents} active | {breached_nodes} nodes breached | {honeypots_triggered} honeypots triggered"
+        text = font.render(security_text, True, NEON_RED)
+        surface.blit(text, (250, 45))
+    
+    def draw_enhanced_controls(self, surface):
+        """Draw enhanced control instructions"""
+        controls_panel = pygame.Rect(10, HEIGHT - 100, 460, 90)
+        pygame.draw.rect(surface, (5, 5, 15), controls_panel)
+        pygame.draw.rect(surface, NEON_BLUE, controls_panel, 2)
+        
+        font = pygame.font.Font(None, 14)
+        
+        # Enhanced controls
+        controls = [
+            "MOUSE: Select nodes | SPACE: Pause | ESC: Exit",
+            "1-8: Hacking tools | A: AI assistant | Q: Quantum tools",
+            "S: Social engineering | Z: Zero-day | B: Botnet attack",
+            "N: Neural analysis | F: Forensic clean | R: Reset network",
+            "T: Terminal mode | H: Toggle HUD | M: Change mode"
+        ]
+        
+        title = pygame.font.Font(None, 16).render("ENHANCED CYBERPUNK CONTROLS", True, NEON_CYAN)
+        surface.blit(title, (15, HEIGHT - 95))
+        
         for i, control in enumerate(controls):
-            text = font.render(control, True, NEON_YELLOW)
-            surface.blit(text, (15, HEIGHT - 75 + i * 15))
+            text = font.render(control, True, NEON_GREEN)
+            surface.blit(text, (15, HEIGHT - 75 + i * 12))
     
     def handle_input(self, keys, events):
         """Handle user input"""
@@ -776,6 +1362,101 @@ class CyberpunkHackingSimulator:
                 if event.button == 1:  # Left click
                     self.handle_mouse_click(event.pos)
     
+    def handle_advanced_input(self, keys, events):
+        """Handle enhanced input for AI features"""
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                # AI and quantum tools
+                if event.key == pygame.K_a:
+                    self.hacking_engine.enhance_ai_capabilities()
+                elif event.key == pygame.K_q:
+                    self.hacking_engine.unlock_quantum_tools()
+                elif event.key == pygame.K_z and self.selected_node:
+                    # Zero-day exploit
+                    result = self.hacking_engine.deploy_zero_day_exploit(self.selected_node)
+                    print(result['message'])
+                elif event.key == pygame.K_n and self.selected_node:
+                    # Neural analysis
+                    result = self.hacking_engine.analyze_neural_patterns(self.selected_node)
+                    print(result['message'])
+                elif event.key == pygame.K_f:
+                    # Forensic cleaning
+                    self.hacking_engine.clean_forensic_traces()
+                elif event.key == pygame.K_b:
+                    # Botnet attack
+                    target_nodes = [n for n in self.network.nodes if not n.is_breached][:3]
+                    if target_nodes:
+                        result = self.hacking_engine.coordinate_distributed_attack(target_nodes)
+                        print(result['message'])
+                elif event.key == pygame.K_s and self.selected_node:
+                    # Social engineering
+                    target_info = {'node_type': self.selected_node.node_type.name}
+                    self.hacking_engine.develop_social_profile(target_info)
+                    result = self.hacking_engine.social_engineering_attack(target_info)
+                    print(result['message'])
+                elif event.key == pygame.K_r:
+                    # Reset network
+                    self.network = NetworkTopology()
+                    self.selected_node = None
+                
+                # Enhanced hacking attempts
+                if self.selected_node and event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4]:
+                    tools = [HackingTool.SCANNER, HackingTool.EXPLOIT, HackingTool.STEALTH, HackingTool.DECRYPTOR]
+                    tool_index = event.key - pygame.K_1
+                    
+                    if tool_index < len(tools):
+                        tool = tools[tool_index]
+                        ai_agent = getattr(self.selected_node, 'ai_agent', None)
+                        result = self.hacking_engine.attempt_advanced_breach(self.selected_node, tool, ai_agent)
+                        
+                        # Add to botnet if successful
+                        if result['success'] and self.selected_node.is_breached:
+                            self.hacking_engine.expand_botnet(self.selected_node)
+                        
+                        print(result['message'])
+    
+    def update_ai_simulation(self):
+        """Update AI security simulation"""
+        if self.paused:
+            return
+        
+        # Update AI learning based on recent attacks
+        attack_patterns = []
+        for node in self.network.nodes:
+            if node.is_detected:
+                attack_patterns.append(f"detected_attack_{node.node_type.name}")
+            if node.is_breached:
+                attack_patterns.append(f"successful_breach_{node.node_type.name}")
+        
+        if attack_patterns:
+            self.network.update_ai_learning(attack_patterns)
+        
+        # AI agents adapt over time
+        for agent in self.network.ai_security_agents:
+            if agent.active and random.random() < 0.01:  # 1% chance per frame
+                # AI improves its defenses
+                agent.adaptation_level = min(10, agent.adaptation_level + 1)
+        
+        # Honeypot detection
+        for honeypot in self.network.honeypots:
+            if honeypot.is_breached and not honeypot.is_detected:
+                # Honeypot was accessed - increase detection for all nodes
+                for node in self.network.nodes:
+                    if hasattr(node, 'ai_agent') and node.ai_agent:
+                        node.ai_agent.adaptation_level += 1
+                honeypot.is_detected = True
+                self.hacking_engine.heat_level += 20
+                print("Honeypot accessed! AI security enhanced!")
+    
+    def get_ai_security_report(self) -> str:
+        """Get AI security status report"""
+        active_agents = len([a for a in self.network.ai_security_agents if a.active])
+        total_agents = len(self.network.ai_security_agents)
+        breached_nodes = len([n for n in self.network.nodes if n.is_breached])
+        honeypots_triggered = len([h for h in self.network.honeypots if h.is_breached])
+        
+        return f"AI Security Status: {active_agents}/{total_agents} agents active | {breached_nodes} nodes breached | {honeypots_triggered} honeypots triggered"
+
     def cycle_game_mode(self):
         """Cycle to next game mode"""
         modes = list(GameMode)
@@ -828,9 +1509,11 @@ def main():
         # Handle input
         keys = pygame.key.get_pressed()
         simulator.handle_input(keys, events)
+        simulator.handle_advanced_input(keys, events)
         
         # Update simulation
         simulator.update_simulation()
+        simulator.update_ai_simulation()
         
         # Clear screen
         screen.fill(CYBER_BLACK)
@@ -852,7 +1535,7 @@ def main():
         
         # Draw UI
         simulator.draw_hud(screen)
-        simulator.draw_controls(screen)
+        simulator.draw_enhanced_controls(screen)
         
         # Update display
         pygame.display.flip()
