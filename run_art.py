@@ -165,7 +165,7 @@ class CyberpunkLauncherUI:
         # Multiple glow layers
         for i in range(thickness * 2, 0, -1):
             alpha = int(80 + 40 * math.sin(self.glow_phase) * (thickness * 2 - i + 1) / (thickness * 2))
-            glow_color = tuple(min(255, c + alpha//3) for c in color)
+            glow_color = tuple(max(0, min(255, c + alpha//3)) for c in color)
             
             border_rect = pygame.Rect(rect.x - i, rect.y - i, 
                                     rect.width + 2*i, rect.height + 2*i)
@@ -219,9 +219,9 @@ class CyberpunkLauncherUI:
             title_surface.set_alpha(240)
             surface.blit(title_surface, title_rect)
             
-            # Animated title text
+            # Animated title text with proper color clamping
             pulse = 1.0 + 0.2 * math.sin(time.time() * 4)
-            title_color = tuple(int(c * pulse) for c in NEON_GREEN)
+            title_color = tuple(max(0, min(255, int(c * pulse))) for c in NEON_GREEN)
             title_text = self.font_small.render(f"▶ {title} ◀", True, title_color)
             title_pos = (title_rect.x + 8, title_rect.y + 3)
             surface.blit(title_text, title_pos)
@@ -240,7 +240,7 @@ class CyberpunkLauncherUI:
             glow_offsets = [(0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (-1, -1), (1, -1), (-1, 1)]
             for offset in glow_offsets:
                 glow_pos = (pos[0] + offset[0], pos[1] + offset[1])
-                glow_color = tuple(c//5 for c in color)
+                glow_color = tuple(max(0, min(255, c//5)) for c in color)
                 glow_text = font.render(text, True, glow_color)
                 surface.blit(glow_text, glow_pos)
         
@@ -275,9 +275,9 @@ class CyberpunkLauncherUI:
                 segment_rect = pygame.Rect(rect.x + 2 + i, rect.y + 2, 
                                          min(segment_width - 1, fill_width - i), rect.height - 4)
                 
-                # Segment color with animation
+                # Segment color with animation and proper color clamping
                 pulse = 0.8 + 0.2 * math.sin(time.time() * 8 + i * 0.3)
-                segment_color = tuple(int(c * pulse) for c in color)
+                segment_color = tuple(max(0, min(255, int(c * pulse))) for c in color)
                 pygame.draw.rect(surface, segment_color, segment_rect)
     
     def draw_holographic_lines(self, surface):
@@ -402,7 +402,7 @@ class InteractiveArtLauncher:
         # Draw title with glow
         for offset in [(0, 2), (2, 0), (0, -2), (-2, 0)]:
             glow_pos = (title_rect.x + offset[0], title_rect.y + offset[1])
-            glow_color = tuple(c//4 for c in title_color)
+            glow_color = tuple(max(0, min(255, c//4)) for c in title_color)
             glow_title = self.ui.font_title.render("◉ CYBER.ART.TERMINAL ◉", True, glow_color)
             screen.blit(glow_title, glow_pos)
         
@@ -446,9 +446,9 @@ class InteractiveArtLauncher:
             
             # Selection highlighting with animation
             if item_index == self.selected_index:
-                # Animated selection background
+                # Animated selection background with proper color clamping
                 pulse = 0.3 + 0.2 * math.sin(time.time() * 8)
-                bg_color = tuple(int(c * pulse) for c in NEON_CYAN)
+                bg_color = tuple(max(0, min(255, int(c * pulse))) for c in NEON_CYAN)
                 select_rect = pygame.Rect(15, y_pos - 2, WIDTH - 30, item_height - 8)
                 
                 # Draw selection with glow
